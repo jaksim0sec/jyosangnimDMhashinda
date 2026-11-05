@@ -15,7 +15,7 @@
   photo:'# 인증 사진\n\n![사진](assets/photo.png)',
   outro:'# 결국\n\n역사는 이렇게 흘러갔다.'
  };
- const state={manifest:[],localIndex:[],id:null,base:null,episode:null,contents:{},baseContents:{},activeId:null,dirty:false,loading:false,assets:new Map(),db:null,saveTimer:null};
+ const state={manifest:[],localIndex:[],id:null,base:null,episode:null,contents:{},baseContents:{},activeId:null,dirty:false,unsaved:false,loading:false,assets:new Map(),db:null,saveTimer:null};
  const player={playing:false,index:0,elapsed:0,lastAt:0,raf:0};
  function error(message){$('error').textContent=message||''}
  function setStatus(value,saved=false){$('saveState').textContent=value;$('saveState').classList.toggle('saved',saved)}
@@ -122,7 +122,7 @@
    state.contents=draft?.episode?.id===id?clone(draft.contents||{}):clone(baseline.contents);
    normalizeScenes(state.episode);
    state.activeId=state.episode.scenes[0]?.id||null;
-   state.dirty=!!draft;
+   state.dirty=!!draft;state.unsaved=false;
    $('episodeTitle').value=state.episode.title;
    await loadAssets(id);
    selectOptions();renderTimeline();editScene(state.activeId);
@@ -137,11 +137,11 @@
  function saveDraft(){
   if(!state.episode)return false;
   const draft=snapshot();
-  if(writeLocal(key(state.id),draft)){state.dirty=true;setStatus('초안 저장됨 · '+new Date().toLocaleTimeString(),true);return true}
+  if(writeLocal(key(state.id),draft)){state.dirty=true;state.unsaved=false;setStatus('초안 저장됨 · '+new Date().toLocaleTimeString(),true);return true}
   setStatus('저장 실패');return false;
  }
  function scheduleSave(){
-  setStatus('수정됨 · 저장 중');
+  state.unsaved=true;setStatus('수정됨 · 저장 중');
   clearTimeout(state.saveTimer);
   state.saveTimer=setTimeout(()=>saveDraft(),250);
  }
@@ -160,7 +160,9 @@
    up.addEventListener('click',()=>moveScene(scene.id,-1));
    const down=document.createElement('button');down.className='mini';down.type='button';down.textContent='↓';down.title='뒤로';down.disabled=i===list.length-1;
    down.addEventListener('click',()=>moveScene(scene.id,1));
-   row.append(mark,button,up,down);host.append(row);
+   const del=document.createElement('button');del.className='mini';del.type='button';del.textContent='×';del.title='장면 삭제';
+   del.addEventListener('click',()=>deleteScene(scene.id));
+   row.append(mark,button,up,down,del);host.append(row);
   });
   $('scenePosition').textContent=list.length+'개 장면 · 총 '+fmt(totalDuration());
  }
@@ -208,6 +210,15 @@
   const arr=state.episode.scenes,i=arr.findIndex(s=>s.id===id),j=i+delta;
   if(i<0||j<0||j>=arr.length)return;
   [arr[i],arr[j]]=[arr[j],arr[i]];scheduleSave();selectScene(id);
+ }
+ function deleteScene(id){
+  stopPlayer();
+  const target=findScene(id);
+  if(!target||!confirm('장면 '+id+'을 삭제할까요?'))return;
+  state.episode.scenes=state.episode.scenes.filter(s=>s.id!==id);
+  delete state.contents[id];state.activeId=state.episode.scenes[0]?.id||null;
+  scheduleSave();renderTimeline();editScene(state.activeId);
+  if(state.activeId)selectScene(state.activeId);else updateStage(null);
  }
  function addScene(){
   stopPlayer();const kind=$('newKind').value;
@@ -288,6 +299,7 @@
   for(const a of assetList)files.push({path:folder+a.path,data:a.blob});
   const review={schema:1,type:'studio-review',episodeId:state.id,baseVersion:state.base?.episode?.version||0,exportedAt:new Date().toISOString(),sceneCount:episode.scenes.length,assetCount:assetList.length,note:'GitHub에 반영하려면 에피소드 폴더 변경사항을 검토하고 episodes/manifest.json을 확인하세요'};
   files.push({path:'studio-review.json',data:JSON.stringify(review,null,2)+'\n'});
+  files.push({path:'studio-draft.json',data:JSON.stringify(snapshot(),null,2)+'\n'});
   if(!state.manifest.some(e=>e.id===state.id)){
    const entry={id:state.id,title:episode.title,description:episode.description||'',source:folder+'episode.json',status:'draft'};
    files.push({path:'manifest-entry.json',data:JSON.stringify(entry,null,2)+'\n'});
@@ -345,7 +357,7 @@
   $('imageFile').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;try{await uploadImage(f)}catch(err){error(err.message)}});
   $('importBtn').addEventListener('click',()=>$('importFile').click());
   $('importFile').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';await importReview(f)});
-  addEventListener('beforeunload',()=>{if(state.episode&&state.dirty)immediateSave()});
+  addEventListener('beforeunload',()=>{if(state.episode&&state.unsaved)immediateSave()});
  }
  async function init(){
   installEvents();state.db=await loadDb();state.localIndex=localEpisodes();
