@@ -262,15 +262,20 @@
   if(!/^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?$/.test(key)||typeof callback!=='function')throw Error('Invalid Studio Canvas variant');
   extensions.set(key,callback);
  }
+ function drawDefault(ctx,model,kind=model.scene.kind){
+  const drawer={intro:sceneCard,outro:sceneCard,narration:sceneCard,chat,post,photo}[kind];
+  if(!drawer)throw Error('Unknown scene type '+kind);
+  if(drawer===sceneCard)drawer(ctx,model,kind);else drawer(ctx,model);
+ }
+ function hasVariant(kind,variant){return extensions.has(kind+':'+variant)||extensions.has(kind)}
  function frame(canvas,model){
   const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw Error('Canvas 2D unsupported');
   const scaleX=canvas.width/W,scaleY=canvas.height/H;ctx.setTransform(scaleX,0,0,scaleY,0,0);ctx.clearRect(0,0,W,H);
   const scene=model.scene;if(!scene)return;
   const kind=scene.kind,variant=kind+':'+(scene.variant||'default');
-  const drawer=extensions.get(variant)||extensions.get(kind)||({intro:sceneCard,outro:sceneCard,narration:sceneCard,chat,post,photo})[kind];
-  if(!drawer)throw Error('Unknown scene type '+kind);
   const m={...model,elapsedMs:clamp(model.elapsedMs??scene.durationMs,0,scene.durationMs),forceAll:!!model.forceAll};
-  if(drawer===sceneCard)drawer(ctx,m,kind);else drawer(ctx,m);
+  const drawer=extensions.get(variant)||extensions.get(kind);
+  if(drawer)drawer(ctx,m,{drawDefault});else drawDefault(ctx,m,kind);
   const transition=scene.transition||'cut',elapsed=m.elapsedMs;
   if(transition==='fade'&&elapsed<250){
    ctx.globalAlpha=(250-elapsed)/250;fill(ctx,'#151a20',0,0,W,H);ctx.globalAlpha=1;
@@ -310,5 +315,5 @@
   return result.filter(x=>x&&!x.ok).map(x=>x.path);
  }
  function clear(){imageCache.clear();tintCache.clear()}
- global.StudioCanvas=Object.freeze({frame,preload,register,clear,safeOf,parseMarkup,measureLines,collectRefs});
+ global.StudioCanvas=Object.freeze({frame,preload,register,hasVariant,drawDefault,clear,safeOf,parseMarkup,measureLines,collectRefs});
 })(window);
