@@ -244,7 +244,7 @@
   $('editingHeading').textContent=scene?KIND_NAME[scene.kind]+' 편집':'장면을 선택하세요';
   if(scene){
    $('sceneKind').value=scene.kind;$('duration').value=+(scene.durationMs/1000).toFixed(1);
-   $('sceneVariant').value=scene.variant&&[...$('sceneVariant').options].some(o=>o.value===scene.variant)?scene.variant:'';
+   $('sceneVariant').value=scene.variant||'';
    $('transition').value=scene.transition||'cut';$('sceneRoom').value=scene.room||'';
   }
  }
@@ -283,6 +283,7 @@
   }else if(field==='transition'){
    scene.transition=value==='fade'?'fade':'cut';
   }else if(field==='variant'){
+   if(!/^[a-z0-9-]{0,64}$/.test(value)){error('스타일 ID는 영문 소문자·숫자·하이픈만 허용됨');return}
    scene.variant=value;
   }else if(field==='room'){
    scene.room=value.slice(0,100);
