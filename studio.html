@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>조상님 단톡쓰신다 · Studio</title>
+<link rel="stylesheet" href="studio/studio.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><div class="mark">史톡</div><div><h1>조상님 단톡쓰신다 <span class="muted">STUDIO</span></h1><small>에피소드 기반 숏폼 제작 워크스페이스</small></div></div>
+  <div class="header-actions"><span id="saveState" class="status">불러오는 중</span><a class="btn" href="/">기존 단톡 플레이어</a><button id="exportBtn" class="btn primary" type="button">검수용 JSON 내보내기</button></div>
+</header>
+<main class="main">
+  <section class="panel episode-panel" aria-label="에피소드 및 장면 목록">
+    <div class="panel-inner">
+      <h2>에피소드</h2>
+      <label for="episodeSelect">작업할 에피소드</label>
+      <select id="episodeSelect"></select>
+      <div class="row buttons" style="margin-top:9px"><button id="newEpisodeBtn" class="btn" type="button">+ 새 에피소드</button><button id="resetBtn" class="btn" type="button">배포본으로 초기화</button></div>
+      <label for="episodeTitle">제목</label><input id="episodeTitle" type="text" maxlength="100">
+      <div class="row" style="margin-top:19px"><h2 style="margin:0;flex:1">타임라인</h2><select id="newKind" aria-label="추가할 장면 유형" style="width:130px"><option value="chat">단톡</option><option value="narration">나레이션</option><option value="post">SNS 게시물</option><option value="intro">인트로</option><option value="photo">사진</option><option value="outro">결말</option></select><button id="addSceneBtn" class="btn" type="button">+</button></div>
+      <div id="timeline" class="timeline" aria-label="장면 순서"></div>
+      <div class="workspace-tip">
+        <p class="hint">장면마다 원고 파일이 따로 있고 순서만 타임라인에서 조립됨. 수정 내용은 이 기기의 에피소드별 초안으로 저장됨.</p>
+      </div>
+    </div>
+  </section>
+  <section class="panel preview-panel" aria-label="영상 장면 미리보기">
+    <div class="preview-title"><h2>9:16 미리보기</h2><label style="margin:0;font-weight:500;font-size:11px"><input type="checkbox" id="guideToggle" checked> 릴스 가림 영역</label></div>
+    <div id="stage" class="stage"><div id="sceneContainer" class="scene"></div><div id="guides" class="safe-guides"><div class="safe-right"></div></div></div>
+    <div class="preview-controls"><button id="playBtn" class="btn primary" type="button">▶ 재생</button><div class="progress"><span id="progressFill"></span></div><span id="previewTime" class="preview-time">0:00</span></div>
+    <p class="hint" style="text-align:center;margin:0">이 화면은 장면 조합 프리뷰 · 통합 영상 녹화는 차기 단계에서 연결</p>
+  </section>
+  <section class="panel editor-panel" aria-label="선택 장면 편집">
+    <div class="panel-inner">
+      <div class="row" style="justify-content:space-between"><h2 id="editingHeading" style="margin:0">장면 편집</h2><span id="scenePosition" class="hint">장면을 선택하세요</span></div>
+      <label for="sceneId">장면 ID</label><input id="sceneId" type="text" readonly>
+      <div class="field-grid">
+        <div><label for="sceneKind">유형</label><select id="sceneKind"><option value="intro">인트로</option><option value="chat">단톡</option><option value="post">SNS 게시물</option><option value="narration">나레이션</option><option value="photo">사진</option><option value="outro">결말</option></select></div>
+        <div><label for="duration">길이 (밀리초)</label><input id="duration" type="number" min="200" max="60000" step="100"></div>
+        <div><label for="sceneVariant">스타일</label><select id="sceneVariant"><option value="">기본</option><option value="kakao">단톡 · 카톡</option><option value="webtoon">나레이션 · 웹툰</option><option value="social">SNS · 게시물</option><option value="dark">검정 배경</option></select></div>
+        <div><label for="transition">전환</label><select id="transition"><option value="cut">바로 전환</option><option value="fade">페이드</option></select></div>
+      </div>
+      <label for="sceneRoom">채팅방 / 추가 정보</label><input id="sceneRoom" type="text" placeholder="단톡 장면일 때 채팅방 이름">
+      <label for="sceneContent">장면 원고 (Markdown / 채팅 형식)</label>
+      <textarea id="sceneContent" class="editor-area" spellcheck="false" placeholder="# 1689년, 조선"></textarea>
+      <div class="row buttons" style="margin-top:10px"><button class="btn" id="uploadImageBtn" type="button">+ 이미지 넣기</button><button class="btn" id="saveBtn" type="button">초안 저장</button><button class="btn" id="importBtn" type="button">검수 JSON 가져오기</button></div>
+      <p id="editorHelp" class="hint">채팅: - 인물: 대사 · - [share] 숙종 > announcement · - [kick] 숙종 > 송시열</p>
+      <p id="error" class="hint" style="color:#b34d45" role="status"></p>
+    </div>
+  </section>
+</main>
+<div class="footer">GitHub 배포본은 읽기 전용 · 브라우저 초안은 에피소드별로 분리 · 검수 JSON은 GitHub 반영을 위한 전달 파일</div>
+<input id="imageFile" type="file" accept="image/*" hidden>
+<input id="importFile" type="file" accept="application/json,.json" hidden>
+<script defer src="studio/renderer.js"></script>
+<script defer src="studio/app.js"></script>
+</body>
+</html>
