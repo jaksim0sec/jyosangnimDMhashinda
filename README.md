@@ -72,3 +72,9 @@ SNS 원고 예:
 ## 프로젝트 성격
 
 실제 카카오톡·SNS 서비스와 무관한 역사 기반 창작 패러디입니다. 역사적 사실과 창작 대사를 구분해 주세요.
+
+## 공용 SVG 56종
+
+`questYourLife/new`의 사용자 확정 Soft SVG 56종을 원본 형태로 옮겼습니다. [아이콘 원본](studio/icons/svg/) · [이름 목록](studio/icons/manifest.json) · [사용 규칙](studio/icons/README.md).
+
+Studio에서 **SVG 아이콘 56종**을 열어 이름을 검색하면, 클릭한 아이콘이 장면 원고의 커서 위치에 삽입됩니다. 직접 `:icon(chat):`, `:icon(play):`, `:icon(check-circle-fill):`처럼 적어도 단톡·나레이션·SNS 화면에서 같은 자산이 렌더링됩니다. 예외적인 장면 UI에서 `StudioIcons.icon('chat',{size:18})`로 재사용할 수 있습니다. 원본 56개 이외의 이름을 임의로 생성하지 않습니다.
