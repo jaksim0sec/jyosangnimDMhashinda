@@ -138,3 +138,9 @@ input[type=text]:focus,select:focus,textarea:focus{border-color:#d67d65;outline:
  .btn,.scene-item,.scene-item .mini{transition:none}
  #recordBtn.recording{animation:none}
 }
+
+.media-character-row{margin:6px 0 10px;align-items:center}
+.media-character-row>label{flex:0 0 auto;font-size:11px;margin:0;color:#526473}
+.media-character-row>select{flex:1;min-width:0;font-size:11px;padding:7px 9px;border-radius:9px}
+.media-card button{transition:background-color .14s ease}
+.media-card button:not(:disabled):hover{background:#fff0e9;color:#b45440}
