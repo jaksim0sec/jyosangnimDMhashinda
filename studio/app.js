@@ -489,7 +489,9 @@
   tx.objectStore('assets').delete({key:state.id+'|'+path}.key);
   tx.oncomplete=()=>{
    const url=state.assets.get(path);if(url)URL.revokeObjectURL(url);
-   state.assets.delete(path);window.StudioCanvas.clear();renderMediaGallery();preloadScenes();
+   state.assets.delete(path);
+   for(const ch of Object.values(state.episode.characters||{}))if(ch?.avatar===path){delete ch.avatar;scheduleSave()}
+   window.StudioCanvas.clear();renderMediaGallery();preloadScenes().catch(e=>error(e.message));
   };
   tx.onerror=()=>error('사진 삭제 실패: '+(tx.error?.message||'DB 오류'));
  }
@@ -635,6 +637,7 @@
   $('guideToggle').addEventListener('change',e=>$('guides').classList.toggle('hidden',!e.target.checked));
   for(const [id,k] of [['safeTop','top'],['safeRight','right'],['safeBottom','bottom']])$(id).addEventListener('change',e=>updateSafeSetting(k,e.target.value));
   $('exportBtn').addEventListener('click',exportReview);
+  $('assetsLibrary').addEventListener('toggle',()=>{if($('assetsLibrary').open)renderMediaGallery()});
   $('uploadImageBtn').addEventListener('click',()=>$('imageFile').click());
   $('imageFile').addEventListener('change',async e=>{const selected=[...(e.target.files||[])];e.target.value='';for(const f of selected){try{await uploadImage(f)}catch(err){error(f.name+': '+err.message)}}});
   for(const zone of [$('stage'),$('mediaGrid')]){
