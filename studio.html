@@ -29,8 +29,8 @@
     </div>
   </section>
   <section class="panel preview-panel" aria-label="영상 장면 미리보기">
-    <div class="preview-title"><h2>9:16 미리보기</h2><label style="margin:0;font-weight:500;font-size:11px"><input type="checkbox" id="guideToggle" checked> 릴스 가림 영역</label></div>
-    <div id="stage" class="stage"><div id="sceneContainer" class="scene"></div><canvas id="videoCanvas" class="studio-video-canvas" width="720" height="1280" aria-label="장면 재생과 실제 녹화에 사용되는 영상 미리보기"></canvas><div id="guides" class="safe-guides"><div class="safe-right"></div></div></div>
+    <div class="preview-title"><h2>9:16 미리보기</h2><label style="margin:0;font-weight:500;font-size:11px"><input type="checkbox" id="guideToggle"> 릴스 가림 영역</label></div>
+    <div id="stage" class="stage"><div id="sceneContainer" class="scene"></div><canvas id="videoCanvas" class="studio-video-canvas" width="720" height="1280" aria-label="장면 재생과 실제 녹화에 사용되는 영상 미리보기"></canvas><div id="guides" class="safe-guides hidden"><div class="safe-right"></div></div></div>
     <div class="preview-controls"><button id="playBtn" class="btn primary" type="button">▶ 재생</button><button id="recordBtn" class="btn" data-studio-icon="play" type="button">● 녹화</button><div class="progress"><span id="progressFill"></span><input id="seek" type="range" min="0" max="1000" step="1" value="0" aria-label="영상 시점 이동"></div><span id="previewTime" class="preview-time">0:00</span></div>
     <p class="hint" id="recordHelp" style="text-align:center;margin:0">미리보기와 동일한 720×1280 WebM · 무음 녹화</p><a id="recordDownload" class="btn hidden" download="episode.webm">마지막 영상 다시 저장</a>
   </section>
