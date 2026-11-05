@@ -29,9 +29,9 @@
   </section>
   <section class="panel preview-panel" aria-label="영상 장면 미리보기">
     <div class="preview-title"><h2>9:16 미리보기</h2><label style="margin:0;font-weight:500;font-size:11px"><input type="checkbox" id="guideToggle" checked> 릴스 가림 영역</label></div>
-    <div id="stage" class="stage"><div id="sceneContainer" class="scene"></div><div id="guides" class="safe-guides"><div class="safe-right"></div></div></div>
-    <div class="preview-controls"><button id="playBtn" class="btn primary" type="button">▶ 재생</button><div class="progress"><span id="progressFill"></span></div><span id="previewTime" class="preview-time">0:00</span></div>
-    <p class="hint" style="text-align:center;margin:0">이 화면은 장면 조합 프리뷰 · 통합 영상 녹화는 차기 단계에서 연결</p>
+    <div id="stage" class="stage"><div id="sceneContainer" class="scene"></div><canvas id="videoCanvas" class="studio-video-canvas" width="720" height="1280" aria-label="장면 재생과 실제 녹화에 사용되는 영상 미리보기"></canvas><div id="guides" class="safe-guides"><div class="safe-right"></div></div></div>
+    <div class="preview-controls"><button id="playBtn" class="btn primary" type="button">▶ 재생</button><button id="recordBtn" class="btn" data-studio-icon="play" type="button">● 녹화</button><div class="progress"><span id="progressFill"></span></div><span id="previewTime" class="preview-time">0:00</span></div>
+    <p class="hint" id="recordHelp" style="text-align:center;margin:0">미리보기와 동일한 720×1280 WebM · 무음 녹화</p><a id="recordDownload" class="btn hidden" download="episode.webm">마지막 영상 다시 저장</a>
   </section>
   <section class="panel editor-panel" aria-label="선택 장면 편집">
     <div class="panel-inner">
@@ -46,6 +46,13 @@
       <label for="sceneRoom">채팅방 / 추가 정보</label><input id="sceneRoom" type="text" placeholder="단톡 장면일 때 채팅방 이름">
       <label for="sceneContent">장면 원고 (Markdown / 채팅 형식)</label>
       <textarea id="sceneContent" class="editor-area" spellcheck="false" placeholder="# 1689년, 조선"></textarea>
+      <details class="icon-library" id="assetsLibrary">
+        <summary><strong>이 에피소드의 사진</strong> <span class="muted" id="mediaCount">0개 · 개별 저장</span></summary>
+        <div class="icon-library-body">
+          <div id="mediaGrid" class="media-grid"></div>
+          <p class="hint">사진을 누르면 선택 장면 커서 위치에 삽입됨 · 사진은 이 에피소드에만 저장됨</p>
+        </div>
+      </details>
       <details class="icon-library" id="iconLibrary">
         <summary><strong>SVG 아이콘 56종</strong> <span class="muted">검색 · 원고에 삽입 · 이름 복사</span></summary>
         <div class="icon-library-body">
@@ -55,7 +62,7 @@
           <p class="hint">아이콘을 누르면 커서 위치에 <code>:icon(chat):</code> 같은 표식이 들어감. 본문·채팅·SNS 화면에서 동일하게 표시됨.</p>
         </div>
       </details>
-      <div class="row buttons" style="margin-top:10px"><button class="btn" id="uploadImageBtn" data-studio-icon="plus" type="button">이미지 넣기</button><button class="btn" id="saveBtn" data-studio-icon="check" type="button">초안 저장</button><button class="btn" id="importBtn" data-studio-icon="link" type="button">초안 JSON 가져오기</button></div>
+      <div class="row buttons" style="margin-top:10px"><button class="btn" id="uploadImageBtn" data-studio-icon="plus" type="button">이미지 넣기</button><button class="btn" id="saveBtn" data-studio-icon="check" type="button">초안 저장</button><button class="btn" id="importBtn" data-studio-icon="link" type="button">초안 JSON 가져오기</button><button class="btn" id="importZipBtn" type="button">검수 ZIP 가져오기</button></div>
       <p id="editorHelp" class="hint">검수 ZIP 안에 초안 JSON과 이미지가 포함됨 · 채팅: - 인물: 대사 · - [share] 숙종 > announcement · - [kick] 숙종 > 송시열</p>
       <p id="error" class="hint" style="color:#b34d45" role="status"></p>
     </div>
@@ -63,9 +70,11 @@
 </main>
 <div class="footer">GitHub 배포본은 읽기 전용 · 브라우저 초안은 에피소드별로 분리 · 검수 ZIP은 GitHub 반영을 위한 전달 파일</div>
 <input id="imageFile" type="file" accept="image/*" hidden>
-<input id="importFile" type="file" accept="application/json,.json" hidden>
+<input id="importFile" type="file" accept="application/json,.json" hidden><input id="importZipFile" type="file" accept=".zip,application/zip" hidden>
 <script defer src="studio/icons.js"></script>
 <script defer src="studio/renderer.js"></script>
+<script defer src="studio/canvas.js"></script>
+<script defer src="studio/webm.js"></script>
 <script defer src="studio/zip.js"></script>
 <script defer src="studio/app.js"></script>
 </body>
