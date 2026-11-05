@@ -96,3 +96,45 @@ select{cursor:pointer}.row{display:flex;gap:8px;align-items:center}.row>*{min-wi
 .safe-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:10px 0}
 .safe-grid label{margin:0;font-size:11px}
 .safe-grid input{width:100%;margin-top:5px}
+
+
+/* Studio refinement: prioritize a readable film monitor and predictable controls. */
+.panel{border-color:#e4e8eb;border-radius:18px;box-shadow:0 3px 15px rgba(30,44,57,.025)}
+.panel-inner{padding:18px}
+.panel h2{font-size:14px;letter-spacing:-.22px}
+.btn{gap:6px;border-radius:12px;min-height:40px;transition:background-color .14s ease,border-color .14s ease,color .14s ease}
+.btn:not(:disabled):hover{background:#faf6f4;border-color:#d9aea3}
+.btn.primary:not(:disabled):hover{background:#b94e3b;border-color:#b94e3b}
+input[type=text]:focus,select:focus,textarea:focus{border-color:#d67d65;outline:2px solid rgba(220,120,95,.16);outline-offset:1px}
+.timeline .scene-item{transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease}
+.scene-item.selected{border-color:#da9a88;background:#fff5f1;box-shadow:inset 2px 0 0 #d9624a}
+.scene-item .scene-icon{border-radius:10px;background:#edf1f3;color:#61727f}
+.scene-item.selected .scene-icon{background:#fce3db;color:#bd543d}
+.scene-item .mini{border-radius:8px;transition:background-color .12s ease}
+.scene-item .mini:not(:disabled):hover{background:#fff1eb}
+.preview-panel{gap:11px;padding:16px 15px}
+.preview-title{font-size:13px}
+.stage{border-radius:16px;box-shadow:0 14px 38px rgba(23,36,50,.20);border:1px solid rgba(25,41,55,.08)}
+.studio-video-canvas{image-rendering:auto}
+#recordBtn.recording{animation:recordPulse 1.5s ease-in-out infinite}
+@keyframes recordPulse{50%{box-shadow:0 0 0 4px rgba(225,73,63,.13)}}
+@media(min-width:1181px){.preview-panel{position:sticky;top:20px}}
+@media(min-width:801px) and (max-width:1180px){
+ .main{grid-template-columns:minmax(260px,1fr) minmax(300px,1fr);gap:14px}
+ .episode-panel{grid-column:1;grid-row:1}
+ .preview-panel{grid-column:2;grid-row:1;position:sticky;top:14px}
+ .editor-panel{grid-column:1/span 2;grid-row:2}
+ .stage{max-width:330px}
+}
+@media(max-width:800px){
+ header.top{gap:9px;flex-direction:column}
+ .header-actions{width:100%;justify-content:space-between}
+ .preview-panel{position:static}
+ .stage{width:min(100%,345px);max-width:345px}
+ .panel-inner{padding:16px}
+ .btn{min-height:43px}
+}
+@media(prefers-reduced-motion:reduce){
+ .btn,.scene-item,.scene-item .mini{transition:none}
+ #recordBtn.recording{animation:none}
+}
