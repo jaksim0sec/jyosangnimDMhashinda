@@ -50,6 +50,7 @@
 .who{font-weight:700;color:#253e51}
 .sceneclock,.notice{background:rgba(27,53,76,.48)}
 @keyframes messageIn{0%{opacity:0;transform:translateY(11px) scale(.985)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
+.message.no-animate{animation:none}
 @media(prefers-reduced-motion:reduce){.message{animation:none}}
 /* Adjustable Shorts bottom-safe region. The translucent preview guide is never drawn in recording. */
 .safe-controls{width:min(100%,370px);display:grid;gap:7px;padding:11px 13px;background:#fff;border:1px solid var(--stroke);border-radius:12px}
@@ -478,31 +479,100 @@ function renderAssets(){const host=$('assetList');host.replaceChildren();$('asse
 }}
 // Profile edits are embedded in char[] so exported TXT keeps the user's choices.
 function escapeStoryField(v){return String(v).replaceAll('\\','\\\\').replaceAll('$','\\$').replaceAll(';','\\;').replaceAll('\n','\\n')}
-function updateCharacterAvatar(who,avatar){
- if(recordState)return false;
- const data=compile(editor.value);
- if(!data.chars.has(who))throw Error(`대본에서 '${who}' 인물을 찾지 못함`);
- const lines=editor.value.replace(/\r/g,'').split('\n');let inBlock=false,changed=false;
+// Apply a profile change to one char[] entry without rewriting adjacent
+// entries, messages, or formatting. The script remains the source of truth.
+function patchCharacterAvatar(script,who,avatar){
+ const lines=String(script).split(/\r\n|\n|\r/);
+ let blockStart=-1,blockEnd=-1;
  for(let i=0;i<lines.length;i++){
-  const raw=lines[i],trimmed=raw.trim();
-  if(/^char\s*\[$/.test(trimmed)){inBlock=true;continue}
-  if(inBlock&&(trimmed===']'||trimmed==='];')){inBlock=false;continue}
-  if(!inBlock||!trimmed||trimmed.startsWith('//'))continue;
-  const fields=splitFields(trimmed.replace(/;$/,'')).map(x=>x.trim());
-  if(fields[0]!==who)continue;
-  const prefix=raw.slice(0,raw.length-raw.trimStart().length);
-  lines[i]=prefix+`${escapeStoryField(who)}$${escapeStoryField(avatar)}$${fields[2]||'#718390'};`;
-  changed=true;break;
+  const line=lines[i].trim();
+  if(blockStart<0&&/^char\s*\[$/.test(line)){blockStart=i;continue}
+  if(blockStart>=0&&/^\]\s*;?$/.test(line)){blockEnd=i;break}
  }
- if(!changed){
-  // A sender omitted from char[] was auto-created; persist their profile
-  // by inserting an explicit character entry when they choose an avatar.
-  const definition=`${escapeStoryField(who)}$${escapeStoryField(avatar)}$#718390;`;
-  const blockStart=lines.findIndex(raw=>/^char\s*\[$/.test(raw.trim()));
-  if(blockStart>=0)lines.splice(blockStart+1,0,definition);
-  else lines.unshift('char[',definition,']');
+ const newEntry=`${escapeStoryField(who)}$${escapeStoryField(avatar)}$#718390;`;
+ if(blockStart<0){
+  lines.unshift('char[',newEntry,']');
+  return lines.join('\n');
  }
- editor.value=lines.join('\n');storeScript();reset();return true;
+ if(blockEnd<0)throw Error('char[ 블록을 ]로 닫아야 함');
+ for(let i=blockStart+1;i<blockEnd;i++){
+  const raw=lines[i];
+  let start=0,escaped=false;
+  const ranges=[];
+  for(let j=0;j<raw.length;j++){
+   const ch=raw[j];
+   if(ch==='\\'&&!escaped){escaped=true;continue}
+   if(ch===';'&&!escaped){ranges.push([start,j]);start=j+1}
+   escaped=false;
+  }
+  if(start<raw.length)ranges.push([start,raw.length]);
+  for(const [begin,end] of ranges){
+   const part=raw.slice(begin,end),content=part.trim();
+   if(!content||content.startsWith('//'))continue;
+   const f=splitFields(content).map(x=>x.trim());
+   if(f[0]!==who)continue;
+   const left=part.slice(0,part.length-part.trimStart().length);
+   const right=part.slice(part.trimEnd().length);
+   const replacement=`${escapeStoryField(who)}$${escapeStoryField(avatar)}$${escapeStoryField(f[2]||'#718390')}`;
+   lines[i]=raw.slice(0,begin)+left+replacement+right+raw.slice(end);
+   return lines.join('\n');
+  }
+ }
+ lines.splice(blockEnd,0,newEntry);
+ return lines.join('\n');
+}
+function refreshVisibleMessages(data,visibleCount){
+ // Rebuild only already-visible messages; preserve media and dialogue positions
+ // without advancing the playback or resetting the editor.
+ if(!visibleCount)return;
+ const previousTitle=liveRoomTitle,previousTyping=recordTypingWho;
+ const timeline=[];
+ for(const e of data.events){
+  if(e.kind==='system')timeline.push({kind:'system',text:e.text});
+  else if(e.kind==='rename')timeline.push({kind:'rename',who:e.who,title:e.title});
+  else if(e.kind==='send'||e.kind==='picture'||e.kind==='file')timeline.push(e);
+  if(timeline.length>=visibleCount)break;
+ }
+ messages.replaceChildren();recordVisualMessages.length=0;
+ liveRoomTitle=data.title;
+ for(const e of timeline){
+  if(e.kind==='system')showNotice(e.text);
+  else if(e.kind==='rename'){liveRoomTitle=e.title;showNotice(`${e.who}님이 채팅방 이름을 ‘${e.title}’로 변경했습니다`)}
+  else showMessage(e);
+  const last=messages.lastElementChild;
+  if(last?.classList?.contains('message'))last.classList.add('no-animate');
+ }
+ $('chatTitle').textContent=timeline.length?liveRoomTitle:previousTitle;
+ if(previousTyping&&isRunning)showTyping(previousTyping);
+}
+function refreshEditedScript(){
+ if(isRunning||recordState)return;
+ const visible=recordVisualMessages.length;
+ let next;
+ try{next=compile(editor.value)}catch(err){report(err.message,true);return}
+ prepare();
+ refreshVisibleMessages(next,visible);
+ // The previous total duration might differ; keep the position valid.
+ currentMs=Math.min(currentMs,next.duration);
+ updateTimeline();
+}
+function updateCharacterAvatar(who,avatar){
+ if(recordState)throw Error('녹화 중에는 프로필을 변경할 수 없음');
+ if(isRunning)throw Error('재생을 중지한 뒤 프로필을 변경해 주세요');
+ const before=compile(editor.value);
+ if(!before.chars.has(who))throw Error(`대본에서 '${who}' 인물을 찾지 못함`);
+ const nextScript=patchCharacterAvatar(editor.value,who,avatar);
+ const after=compile(nextScript);
+ // Treat any profile edit that modifies scripted actions as a failure.
+ if(JSON.stringify(before.events)!==JSON.stringify(after.events))throw Error('프사 변경 중 대사가 바뀔 위험이 있어 저장을 취소했음');
+ if([...before.chars.keys()].some(name=>!after.chars.has(name)))throw Error('프사 변경 중 다른 인물이 누락되어 저장을 취소했음');
+ const visible=recordVisualMessages.length;
+ editor.value=nextScript;
+ storeScript();
+ prepare();
+ refreshVisibleMessages(after,visible);
+ updateTimeline();
+ return true;
 }
 let pendingProfileWho=null;
 function renderCharacters(data){
@@ -733,7 +803,7 @@ $('loadScriptBtn').addEventListener('click',()=>$('scriptFile').click());$('scri
 $('saveScriptBtn').addEventListener('click',()=>downloadText('history-chat.story.txt',editor.value));
 $('assetAddBtn').addEventListener('click',()=>$('assetFiles').click());$('assetFiles').addEventListener('change',async(e)=>{await addAssets(e.target.files);e.target.value=''});
 const drop=$('dropZone');for(const name of ['dragenter','dragover'])drop.addEventListener(name,e=>{e.preventDefault();drop.classList.add('active')});for(const name of ['dragleave','drop'])drop.addEventListener(name,e=>{e.preventDefault();drop.classList.remove('active')});drop.addEventListener('drop',e=>addAssets(e.dataTransfer.files));
-let editTimer;editor.addEventListener('input',()=>{storeScript();clearTimeout(editTimer);editTimer=setTimeout(()=>{if(!isRunning)reset()},350)});
+let editTimer;editor.addEventListener('input',()=>{storeScript();clearTimeout(editTimer);editTimer=setTimeout(refreshEditedScript,350)});
 document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();play()} });
 editor.value=loadStored()??SAMPLE;prepare();updateTimeline();loadAllAssets();
 </script>
