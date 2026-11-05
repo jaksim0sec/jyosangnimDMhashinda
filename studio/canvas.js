@@ -180,6 +180,7 @@
  }
  function chatLines(ctx,entry,available,frame,previous){
   if(entry.type==='system')return {height:43,entry,rows:measureLines(ctx,entry.text,available-25,10,false,2)};
+  if(entry.type==='typing')return {height:63,entry,rows:[],own:false,grouped:false,above:18,after:11,width:60,bh:34};
   const own=!!chatOwn(frame,entry.who),grouped=previous?.who===entry.who&&previous?.type!=='system';
   const above=own||grouped?0:18,after=grouped?6:12;
   let width=221,bh,rows=[];
@@ -226,7 +227,7 @@
   for(const past of scenes){
    if(past.id===frame.scene.id)break;
    if(past.kind==='chat'&&(past.room||frame.episode.title)===room){
-    before.push(...(global.StudioRenderers?.parseChat?.(frame.getSceneContent?.(past.id)||'')||[]));
+    before.push(...(global.StudioRenderers?.parseChat?.(frame.getSceneContent?.(past.id)||'')||[]).filter(item=>item.type!=='typing'));
    }
   }
   const current=global.StudioRenderers?.parseChat?.(frame.text)||[];
@@ -261,6 +262,16 @@
     const x=Math.max(10,(maxRight-w)/2+5);
     box(ctx,x,yy+9,w,26,'rgba(48,70,89,.31)',13);
     textBlock(ctx,text,x+10,yy+15,w-20,{size:10,color:'#fff',align:'center',maxLines:1});
+   }else if(item.type==='typing'){
+    drawChatAvatar(ctx,frame,item.who,12,yy);
+    rectText(ctx,item.who+' · 입력 중…',48,yy+7,10,'#354c5b');
+    const px=48,py=yy+b.above;
+    box(ctx,px,py,60,34,'#fff',10);
+    for(let dot=0;dot<3;dot++){
+      const phase=(played/240+dot*.67)%3;
+      ctx.beginPath();ctx.arc(px+16+dot*13,py+18+(phase>1&&phase<2?-3:0),2.7,0,Math.PI*2);
+      ctx.fillStyle='#9aa8b3';ctx.fill();
+    }
    }else{
     const bx=b.own?Math.max(left,maxRight-b.width-4):48,by=yy+b.above;
     if(!b.own&&!b.grouped){
