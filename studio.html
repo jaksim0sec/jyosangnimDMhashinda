@@ -30,7 +30,7 @@
   <section class="panel preview-panel" aria-label="영상 장면 미리보기">
     <div class="preview-title"><h2>9:16 미리보기</h2><label style="margin:0;font-weight:500;font-size:11px"><input type="checkbox" id="guideToggle" checked> 릴스 가림 영역</label></div>
     <div id="stage" class="stage"><div id="sceneContainer" class="scene"></div><canvas id="videoCanvas" class="studio-video-canvas" width="720" height="1280" aria-label="장면 재생과 실제 녹화에 사용되는 영상 미리보기"></canvas><div id="guides" class="safe-guides"><div class="safe-right"></div></div></div>
-    <div class="preview-controls"><button id="playBtn" class="btn primary" type="button">▶ 재생</button><button id="recordBtn" class="btn" data-studio-icon="play" type="button">● 녹화</button><div class="progress"><span id="progressFill"></span></div><span id="previewTime" class="preview-time">0:00</span></div>
+    <div class="preview-controls"><button id="playBtn" class="btn primary" type="button">▶ 재생</button><button id="recordBtn" class="btn" data-studio-icon="play" type="button">● 녹화</button><div class="progress"><span id="progressFill"></span><input id="seek" type="range" min="0" max="1000" step="1" value="0" aria-label="영상 시점 이동"></div><span id="previewTime" class="preview-time">0:00</span></div>
     <p class="hint" id="recordHelp" style="text-align:center;margin:0">미리보기와 동일한 720×1280 WebM · 무음 녹화</p><a id="recordDownload" class="btn hidden" download="episode.webm">마지막 영상 다시 저장</a>
   </section>
   <section class="panel editor-panel" aria-label="선택 장면 편집">
@@ -39,7 +39,7 @@
       <label for="sceneId">장면 ID</label><input id="sceneId" type="text" readonly>
       <div class="field-grid">
         <div><label for="sceneKind">유형</label><select id="sceneKind"><option value="intro">인트로</option><option value="chat">단톡</option><option value="post">SNS 게시물</option><option value="narration">나레이션</option><option value="photo">사진</option><option value="outro">결말</option></select></div>
-        <div><label for="duration">길이 (밀리초)</label><input id="duration" type="number" min="200" max="60000" step="100"></div>
+        <div><label for="duration">장면 길이 (초)</label><input id="duration" type="number" min="0.2" max="60" step="0.1"></div>
         <div><label for="sceneVariant">스타일</label><select id="sceneVariant"><option value="">기본</option><option value="kakao">단톡 · 카톡</option><option value="webtoon">나레이션 · 웹툰</option><option value="social">SNS · 게시물</option><option value="dark">검정 배경</option></select></div>
         <div><label for="transition">전환</label><select id="transition"><option value="cut">바로 전환</option><option value="fade">페이드</option></select></div>
       </div>
@@ -69,7 +69,7 @@
   </section>
 </main>
 <div class="footer">GitHub 배포본은 읽기 전용 · 브라우저 초안은 에피소드별로 분리 · 검수 ZIP은 GitHub 반영을 위한 전달 파일</div>
-<input id="imageFile" type="file" accept="image/*" hidden>
+<input id="imageFile" type="file" accept="image/*" multiple hidden>
 <input id="importFile" type="file" accept="application/json,.json" hidden><input id="importZipFile" type="file" accept=".zip,application/zip" hidden>
 <script defer src="studio/icons.js"></script>
 <script defer src="studio/renderer.js"></script>
