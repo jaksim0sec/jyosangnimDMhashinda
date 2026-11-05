@@ -128,7 +128,7 @@
    state.dirty=!!draft;state.unsaved=false;
    $('episodeTitle').value=state.episode.title;
    await loadAssets(id);
-   player.index=0;player.elapsed=0;
+   player.index=0;player.elapsed=0;syncSafeSettings();
    const missing=await window.StudioCanvas.preload(state.episode,state.contents,resolveAsset);
    if(missing.length)error('이미지 '+missing.length+'개를 불러오지 못했습니다. 사진을 연결해 주세요.');
    selectOptions();renderTimeline();editScene(state.activeId);updateStage(activeScene());
@@ -154,6 +154,23 @@
  }
  function immediateSave(){clearTimeout(state.saveTimer);return saveDraft()}
  function sceneLabel(scene){return (KIND_NAME[scene.kind]||scene.kind)+' · '+(scene.id||'')}
+ function syncSafeSettings(){
+  if(!state.episode)return;
+  const values=window.StudioCanvas.safeOf(state.episode),guide=$('guides');
+  for(const [id,value] of [['safeTop',values.top],['safeRight',values.right],['safeBottom',values.bottom]])$(id).value=String(value);
+  guide.style.setProperty('--guide-top',values.top+'%');
+  guide.style.setProperty('--guide-right',values.right+'%');
+  guide.style.setProperty('--guide-bottom',values.bottom+'%');
+ }
+ function updateSafeSetting(name,value){
+  if(!state.episode||video.recording)return;
+  const allowed={top:30,right:29,bottom:35},number=Math.round(Number(value));
+  if(!Number.isFinite(number)||number<0||number>allowed[name])return;
+  state.episode.settings??={};
+  state.episode.settings.safeArea??={};
+  state.episode.settings.safeArea[name]=number;
+  syncSafeSettings();scheduleSave();drawFrame();
+ }
  function renderTimeline(){
   const host=$('timeline');host.replaceChildren();
   const list=state.episode?.scenes||[];
@@ -315,7 +332,7 @@
   $('playBtn').textContent='Ⅱ 정지';player.raf=requestAnimationFrame(frame);
  }
  function recordingUI(active){
-  for(const id of ['episodeSelect','newEpisodeBtn','resetBtn','addSceneBtn','newKind','episodeTitle','sceneKind','duration','sceneVariant','transition','sceneRoom','sceneContent','uploadImageBtn','saveBtn','importBtn','importZipBtn','exportBtn','playBtn']){
+  for(const id of ['episodeSelect','newEpisodeBtn','resetBtn','addSceneBtn','newKind','episodeTitle','sceneKind','duration','sceneVariant','transition','sceneRoom','sceneContent','uploadImageBtn','saveBtn','importBtn','importZipBtn','exportBtn','playBtn','safeTop','safeRight','safeBottom']){
    const elem=$(id);if(elem)elem.disabled=active;
   }
   $('recordBtn').disabled=false;
@@ -515,7 +532,7 @@
    normalizeScenes(data.episode);
    state.episode=clone(data.episode);state.contents=clone(data.contents);
    immediateSave();$('episodeTitle').value=state.episode.title;
-   state.activeId=state.episode.scenes[0]?.id||null;renderTimeline();editScene(state.activeId);selectScene(state.activeId);
+   state.activeId=state.episode.scenes[0]?.id||null;syncSafeSettings();renderTimeline();editScene(state.activeId);selectScene(state.activeId);
   }catch(e){error('가져오기 실패: '+e.message)}
  }
  function insertIconToken(name){
@@ -555,7 +572,7 @@
    state.activeId=state.episode.scenes[0]?.id||null;
    if(!immediateSave())throw Error('로컬 초안 저장 공간 부족');
    await loadAssets(state.id);await preloadScenes();
-   player.index=0;player.elapsed=0;renderTimeline();editScene(state.activeId);updateStage(activeScene());
+   player.index=0;player.elapsed=0;syncSafeSettings();renderTimeline();editScene(state.activeId);updateStage(activeScene());
    setStatus('검수 ZIP 가져오기 완료 · 에피소드별 로컬 저장',true);error('');
   }catch(err){error('검수 ZIP 가져오기 실패: '+err.message)}
  }
@@ -582,6 +599,7 @@
   $('recordBtn').addEventListener('click',recordClick);
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&video.recording){error('화면이 숨겨져 녹화를 종료함 · 저장 파일 확인 필요');stopRecording(true)}});
   $('guideToggle').addEventListener('change',e=>$('guides').classList.toggle('hidden',!e.target.checked));
+  for(const [id,k] of [['safeTop','top'],['safeRight','right'],['safeBottom','bottom']])$(id).addEventListener('change',e=>updateSafeSetting(k,e.target.value));
   $('exportBtn').addEventListener('click',exportReview);
   $('uploadImageBtn').addEventListener('click',()=>$('imageFile').click());
   $('imageFile').addEventListener('change',async e=>{const selected=[...(e.target.files||[])];e.target.value='';for(const f of selected){try{await uploadImage(f)}catch(err){error(f.name+': '+err.message)}}});
