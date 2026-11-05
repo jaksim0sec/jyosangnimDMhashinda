@@ -62,3 +62,19 @@ select{cursor:pointer}.row{display:flex;gap:8px;align-items:center}.row>*{min-wi
 .icon-copy:hover,.icon-copy:focus-visible{color:#b3503d;background:#ffede7}
 .studio-post-actions{display:flex;justify-content:space-between;align-items:center;letter-spacing:normal}
 @media(max-width:800px){.icon-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));max-height:270px}}
+
+
+/* Preview and output share this canvas. Safe guides are editor-only overlays. */
+.studio-video-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:4;object-fit:fill;background:#171b21}
+.stage>.scene{visibility:hidden;pointer-events:none}
+.preview-controls{flex-wrap:wrap}.preview-controls .progress{min-width:85px}.preview-controls .btn{min-width:76px}
+.preview-controls #recordBtn.recording{background:#e1493f;border-color:#e1493f;color:white}
+.preview-panel #recordDownload{align-self:center;text-decoration:none;padding:7px 12px;min-height:34px}
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:10px;max-height:290px;overflow:auto}
+.media-card{position:relative;display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);background:#fff;border-radius:11px;padding:5px;min-width:0}
+.media-card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px}
+.media-card .media-name{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.media-card button{min-height:27px;border:1px solid #e4e7ea;border-radius:7px;background:#f6f8fa;color:#394958;font-size:10px;font-weight:750}
+.media-card .media-remove{color:#a54d45;background:#fff8f6}
+.media-card .media-remove:disabled{opacity:.4}
+#recordHelp{max-width:340px}
