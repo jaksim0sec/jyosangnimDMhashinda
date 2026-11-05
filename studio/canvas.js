@@ -230,7 +230,7 @@
    }
   }
   const current=global.StudioRenderers?.parseChat?.(frame.text)||[];
-  const interval=frame.scene.durationMs/Math.max(1,current.length);
+  const interval=clamp(frame.scene.paceMs||frame.scene.durationMs/Math.max(1,current.length),120,12000);
   const played=frame.forceAll?frame.scene.durationMs:frame.elapsedMs;
   let count=frame.forceAll?current.length:Math.min(current.length,Math.max(0,Math.floor((played-130)/interval)+1));
   const visible=[...before,...current.slice(0,count)].slice(-70);
@@ -366,11 +366,15 @@
   const kind=scene.kind,variant=kind+':'+(scene.variant||'default');
   const m={...model,elapsedMs:clamp(model.elapsedMs??scene.durationMs,0,scene.durationMs),forceAll:!!model.forceAll};
   const drawer=extensions.get(variant)||extensions.get(kind);
-  if(drawer)drawer(ctx,m,{drawDefault});else drawDefault(ctx,m,kind);
   const transition=scene.transition||'cut',elapsed=m.elapsedMs;
-  if(transition==='fade'&&elapsed<250){
-   ctx.globalAlpha=(250-elapsed)/250;fill(ctx,'#151a20',0,0,W,H);ctx.globalAlpha=1;
-  }
+  // Frame-time-based easing is identical in seek preview and exported recording.
+  // Never use CSS-only animations, which are absent from captureStream output.
+  const t=transition==='fade'&&!m.forceAll?clamp(elapsed/360,0,1):1;
+  const ease=1-(1-t)**3;
+  ctx.save();
+  if(t<1){ctx.globalAlpha=.12+.88*ease;ctx.translate(0,(1-ease)*12)}
+  if(drawer)drawer(ctx,m,{drawDefault});else drawDefault(ctx,m,kind);
+  ctx.restore();
  }
  function collectRefs(episode,contents){
   const refs=new Set(),icons=new Set();
@@ -380,6 +384,7 @@
    for(const msg of global.StudioRenderers?.parseChat?.(text)||[])if(msg.type==='image')refs.add(msg.path);
    for(const match of text.matchAll(/:icon\(([a-z][a-z0-9-]*)\):/g))icons.add(match[1]);
   }
+  for(const person of Object.values(episode.characters||{}))if(person?.avatar&&typeof person.avatar==='string')refs.add(person.avatar);
   for(const name of ['heart','repeat','chat','share','left','menu'])icons.add(name);
   return {images:[...refs],icons:[...icons]};
  }
