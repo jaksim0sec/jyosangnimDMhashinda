@@ -3,8 +3,23 @@
  'use strict';
  const registry=new Map();
  function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=String(text);return node}
+ function appendMarked(node,value){
+  const text=String(value??''),rx=/:icon\(([a-z][a-z0-9-]{0,60})\):/g;
+  let start=0,match;
+  while((match=rx.exec(text))){
+   if(match.index>start)node.append(document.createTextNode(text.slice(start,match.index)));
+   const name=match[1];
+   if(global.StudioIcons?.has(name)){
+    const mark=global.StudioIcons.icon(name,{size:16});mark.classList.add('scene-inline-icon');node.append(mark);
+   }else node.append(document.createTextNode(match[0]));
+   start=rx.lastIndex;
+  }
+  if(start<text.length)node.append(document.createTextNode(text.slice(start)));
+ }
+ function rich(tag,cls,text){const node=el(tag,cls);appendMarked(node,text);return node}
+ function uiIcon(name,size=18){return global.StudioIcons?.has(name)?global.StudioIcons.icon(name,{size}):el('span','',name)}
  function paragraphs(text,host){
-  for(const p of String(text||'').split(/\n\s*\n/).filter(s=>s.trim()))host.append(el('p','',p.trim()));
+  for(const p of String(text||'').split(/\n\s*\n/).filter(s=>s.trim()))host.append(rich('p','',p.trim()));
  }
  function headingAndText(text){
   const lines=String(text||'').split('\n');
@@ -27,7 +42,7 @@
   const {title,body}=headingAndText(text);
   const small=el('div','scene-kicker',scene.kind==='intro'?'역사 속 그날':scene.kind==='outro'?'그 후':'역사 기록');
   card.append(small);
-  if(title)card.append(el('h2','scene-bigtitle',title));
+  if(title)card.append(rich('h2','scene-bigtitle',title));
   const content=el('div','scene-description');paragraphs(sceneText(body),content);card.append(content);
   const image=markdownImage(text);
   if(image){card.classList.add('with-image');card.prepend(imageElement(image,ctx,'scene-background-image'))}
@@ -70,12 +85,13 @@
  function renderChat({scene,text},ctx){
   const wrap=el('div','studio-chat');
   const header=el('header','studio-chat-head');
-  header.append(el('span','studio-back','‹'),el('div','studio-room',scene.room||ctx.episode.title),el('span','studio-menu','☰'));
+  const back=el('span','studio-back'),menu=el('span','studio-menu');back.append(uiIcon('left',20));menu.append(uiIcon('menu',19));
+  header.append(back,el('div','studio-room',scene.room||ctx.episode.title),menu);
   const chat=el('div','studio-chat-body');
   const messages=parseChat(text);
   for(let i=0;i<messages.length;i++){
    const m=messages[i],delay=Math.round(200+i*Math.min(360,Math.max(85,(scene.durationMs-300)/Math.max(1,messages.length))));
-   if(m.type==='system'){const notice=el('div','studio-system',m.text);notice.style.animationDelay=delay+'ms';chat.append(notice);continue}
+   if(m.type==='system'){const notice=rich('div','studio-system',m.text);notice.style.animationDelay=delay+'ms';chat.append(notice);continue}
    const row=el('div','studio-chat-row');row.style.animationDelay=delay+'ms';
    row.append(el('div','studio-chat-avatar',m.who.slice(0,1)));
    const content=el('div','studio-chat-message');content.append(el('div','studio-chat-author',m.who));
@@ -85,7 +101,7 @@
     const share=el('div','studio-shared-post');
     share.append(el('div','studio-share-label','공유한 게시물'),el('strong','',data.title||m.target));
     paragraphs(data.body,share);content.append(share);
-   }else content.append(el('div','studio-chat-bubble',m.text));
+   }else content.append(rich('div','studio-chat-bubble',m.text));
    row.append(content);chat.append(row);
   }
   wrap.append(header,chat);
@@ -103,7 +119,7 @@
   const byline=el('div','studio-post-author');byline.append(el('strong','',who),el('span','',handle||'@joseon'));head.append(byline,el('span','studio-post-dots','···'));post.append(head);
   const body=el('div','studio-post-text');paragraphs(sceneText(lines.join('\n')),body);post.append(body);
   const image=markdownImage(text);if(image)post.append(imageElement(image,ctx,'studio-post-image'));
-  const actions=el('div','studio-post-actions','♡          ↻          ◌          ↗');post.append(actions);wrap.append(post);
+  const actions=el('div','studio-post-actions');for(const name of ['heart','repeat','chat','share'])actions.append(uiIcon(name,17));post.append(actions);wrap.append(post);
   return wrap;
  }
  function renderPhoto({scene,text},ctx){
@@ -111,8 +127,8 @@
   const data=headingAndText(text),image=markdownImage(text);
   if(image)wrap.append(imageElement(image,ctx,'studio-photo-image'));
   else wrap.append(el('div','scene-image-missing','이미지 삽입을 기다리는 중'));
-  if(data.title)wrap.append(el('h2','studio-photo-title',data.title));
-  if(sceneText(data.body))wrap.append(el('p','studio-photo-caption',sceneText(data.body)));
+  if(data.title)wrap.append(rich('h2','studio-photo-title',data.title));
+  if(sceneText(data.body))wrap.append(rich('p','studio-photo-caption',sceneText(data.body)));
   return wrap;
  }
  registry.set('intro',renderCard);registry.set('outro',renderCard);registry.set('narration',renderCard);
