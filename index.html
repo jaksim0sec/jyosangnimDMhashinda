@@ -51,6 +51,17 @@
 .sceneclock,.notice{background:rgba(27,53,76,.48)}
 @keyframes messageIn{0%{opacity:0;transform:translateY(11px) scale(.985)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.message{animation:none}}
+/* Adjustable Shorts bottom-safe region. The translucent preview guide is never drawn in recording. */
+.safe-controls{width:min(100%,370px);display:grid;gap:7px;padding:11px 13px;background:#fff;border:1px solid var(--stroke);border-radius:12px}
+.safe-controls-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:#364552}
+.safe-controls output{font-variant-numeric:tabular-nums;color:#b74e3a;font-weight:800}
+.safe-controls input[type=range]{width:100%;accent-color:#e66e54;cursor:pointer}
+.safe-controls small{color:#748392;font-size:10px;line-height:1.4}
+.phone{--shorts-safe-bottom:20%}
+.shorts-safe-area{flex:0 0 var(--shorts-safe-bottom);min-height:0;background:rgba(38,62,82,.14);border-top:1px dashed rgba(35,56,76,.30);color:rgba(30,56,76,.75);font-size:10px;font-weight:650;display:grid;place-items:center;text-align:center;overflow:hidden}
+.shorts-safe-area::after{content:'쇼츠 하단 가림 영역';white-space:nowrap}
+.phone[style*="--shorts-safe-bottom: 0%"] .shorts-safe-area{border:0}
+@media(max-width:420px){.safe-controls{width:min(100%,328px)}}
 </style>
 </head>
 <body>
@@ -75,11 +86,13 @@
     </section>
     <section class="right" aria-label="메신저 미리보기">
       <div class="view-header"><h2 class="sectiontitle">재생 미리보기</h2><div class="controls"><select class="perspective" id="perspective" aria-label="채팅 시점"><option value="">관전자 시점</option></select><select id="speed" class="speed" aria-label="재생 속도"><option value="0.5">0.5×</option><option value="1" selected>1× 속도</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select><button id="restartBtn" class="btn" title="처음부터" type="button">↺</button><button id="playBtn" class="btn accent" type="button">▶ 재생</button><button id="recordBtn" class="btn record-btn" type="button">● 녹화</button></div></div>
+      <div class="safe-controls"><div class="safe-controls-row"><label for="safeBottom">쇼츠 하단 안전 영역</label><output id="safeBottomValue" for="safeBottom">20%</output></div><input type="range" id="safeBottom" min="0" max="35" step="1" value="20" aria-label="쇼츠 하단 안전 영역 비율"><small>채팅과 입력창을 가림 영역 위로 이동 · 영상에도 반영</small></div>
       <div class="phone" id="phone">
         <div class="phone-status"><span>9:41</span><span class="status-icons">▮▮ ◕ ▰</span></div>
         <div class="chat-header"><span class="back">‹</span><div class="chat-title-wrap"><div class="chat-title" id="chatTitle">요동정벌 추진위원회</div><div class="chat-people" id="chatPeople">참여자 4명</div></div><span class="chat-menu">☰</span></div>
         <div class="chat-scroll" id="chatScroll" aria-live="off"><div class="sceneclock" id="sceneClock">1388년 5월 · 위화도</div><div id="messages"></div><div id="typingHost"></div></div>
         <div class="chat-bottom"><span class="input-plus">＋</span><div class="fake-input">메시지 입력</div><span class="fake-send">↑</span></div>
+        <div class="shorts-safe-area" aria-hidden="true"></div>
         <canvas class="record-canvas" id="recordCanvas" width="540" height="960" aria-label="녹화 중 미리보기"></canvas>
       </div>
       <div style="width:min(100%,370px)"><div class="timeline"><div class="timeline-fill" id="timelineFill"></div></div><div class="time-row"><span id="timeLabel">00:00 / 00:00</span><span id="playState">재생 준비</span></div></div>
@@ -139,6 +152,17 @@ const recordVisualMessages=[];
 let recordTypingWho=null, recordState=null, lastRecordingUrl=null;
 const recordImageCache=new Map();
 const DEFAULT_TYPING=900, DEFAULT_AFTER=450;
+const SAFE_AREA_KEY='storychat-shorts-safe-bottom-v1';
+let safeBottomPercent=20;
+function safeAreaPx(){return Math.round(640*safeBottomPercent/100)}
+function setSafeBottom(value,save=true){
+ const number=Number(value);safeBottomPercent=Number.isFinite(number)?Math.max(0,Math.min(35,Math.round(number))):20;
+ $('safeBottom').value=String(safeBottomPercent);
+ $('safeBottomValue').textContent=`${safeBottomPercent}%`;
+ $('phone').style.setProperty('--shorts-safe-bottom',`${safeBottomPercent}%`);
+ if(save){try{localStorage.setItem(SAFE_AREA_KEY,String(safeBottomPercent))}catch(_){}}
+}
+try{setSafeBottom(localStorage.getItem(SAFE_AREA_KEY)??20,false)}catch(_){setSafeBottom(20,false)}
 
 // Escapes: \\$ \\; \\n \\\\ . Line-based statements keep the script readable.
 function splitFields(s){
@@ -297,13 +321,16 @@ function showMessage(e){const {wrap,content}=makeMessage(e.who,e.kind);
   if(!safeImagePath(e.path))placeholder();else{img.src=assetURL(e.path);img.onerror=placeholder;bubble.append(img)}
   content.append(bubble);
  }
- messages.append(wrap);recordVisualMessages.push({...e,appearedAt:performance.now()});scrollBottom();
+ messages.append(wrap);recordVisualMessages.push({...e,appearedAt:performance.now()});
+ // Only the last visible messages matter for recording, preventing long scripts from slowing down each frame.
+ if(recordVisualMessages.length>100)recordVisualMessages.splice(0,recordVisualMessages.length-100);
+ scrollBottom();
 }
 function showTyping(who){recordTypingWho=who;typingHost.replaceChildren();const own=isOwn(who),row=element('div','typing-row'+(own?' own':''));if(!own)row.append(messages.lastElementChild?.dataset.who===who?element('div','avatar-spacer'):avatarNode(who));
  const bubble=element('div','typing-bubble');for(let i=0;i<3;i++)bubble.append(element('span','typing-dot'));row.append(bubble);typingHost.append(row);scrollBottom();
 }
 function hideTyping(){recordTypingWho=null;typingHost.replaceChildren()}
-function showNotice(text){recordVisualMessages.push({kind:'system',text});messages.append(element('div','notice',text));scrollBottom()}
+function showNotice(text){recordVisualMessages.push({kind:'system',text,appearedAt:performance.now()});if(recordVisualMessages.length>100)recordVisualMessages.splice(0,recordVisualMessages.length-100);messages.append(element('div','notice',text));scrollBottom()}
 function updateTimeline(){const frac=totalMs?Math.min(1,currentMs/totalMs):0;$('timelineFill').style.width=(frac*100).toFixed(2)+'%';$('timeLabel').textContent=`${formatTime(currentMs)} / ${formatTime(totalMs)}`}
 function reset({recompile=true}={}){
  playGeneration++;isRunning=false;isPaused=true;currentMs=0;recordVisualMessages.length=0;hideTyping();messages.replaceChildren();
@@ -379,7 +406,7 @@ async function loadAllAssets(){
  }
  persistNextAssetId();
  for(const item of legacy)await dbRequest('readwrite',store=>store.put(item));
- renderAssets();
+ renderAssets();renderCharacters(compiled);
 }
 function createAssetUrl(name,blob,id){const old=assets.get(name);if(old)URL.revokeObjectURL(old.url);assets.set(name,{id,url:URL.createObjectURL(blob),blob});recordImageCache.clear()}
 async function addAssets(files){let added=0;for(const file of files){if(!file.type.startsWith('image/'))continue;if(file.size>25*1024*1024){report(`${file.name}: 이미지 크기는 25MB 이하여야 함`,true);continue}
@@ -565,23 +592,23 @@ function drawRecordCanvas(){
  const scenes=[{kind:'clock'}].concat(recordVisualMessages);
  if(recordTypingWho)scenes.push({kind:'typing',who:recordTypingWho});
  const layouts=scenes.map((e,i)=>measureVisual(c,e,scenes[i-1]));let total=100;for(const e of layouts)total+=e.height;
- const shift=Math.max(0,total-572);
- c.save();c.beginPath();c.rect(0,82,360,506);c.clip();let pos=100-shift;
+ const inputY=588-safeAreaPx(),shift=Math.max(0,total-(inputY-16));
+ c.save();c.beginPath();c.rect(0,82,360,inputY-82);c.clip();let pos=100-shift;
  for(let i=0;i<scenes.length;i++){
   const b=layouts[i],item=scenes[i];
-  if(pos+b.height>=82&&pos<=588){
+  if(pos+b.height>=82&&pos<=inputY){
    const elapsed=item.appearedAt===undefined?Infinity:performance.now()-item.appearedAt;
    const t=Math.max(0,Math.min(1,elapsed/340)),ease=1-Math.pow(1-t,3);
    c.save();c.globalAlpha=0.12+0.88*ease;drawVisual(c,item,b,pos+(1-ease)*10);c.restore();
   }pos+=b.height;
  }c.restore();
  // Input bar
- panelFill(c,0,588,360,52,'#fff');c.fillStyle='rgba(25,38,51,.08)';c.fillRect(0,588,360,1);
- canvasText(c,'＋',12,622,'300 22px sans-serif','#89939b');panelFill(c,42,598,275,34,'#f5f6f7',8);
- canvasText(c,'메시지 입력',54,620,'11px "Noto Sans KR",sans-serif','#a1a9af');canvasText(c,'↑',338,621,'18px sans-serif','#d8b945','right');
+ panelFill(c,0,inputY,360,52,'#fff');c.fillStyle='rgba(25,38,51,.08)';c.fillRect(0,inputY,360,1);
+ canvasText(c,'＋',12,inputY+34,'300 22px sans-serif','#89939b');panelFill(c,42,inputY+10,275,34,'#f5f6f7',8);
+ canvasText(c,'메시지 입력',54,inputY+32,'11px "Noto Sans KR",sans-serif','#a1a9af');canvasText(c,'↑',338,inputY+33,'18px sans-serif','#d8b945','right');
 }
 function setRecorderControls(active){
- for(const id of ['playBtn','restartBtn','speed','perspective','validateBtn','sampleBtn','loadScriptBtn','assetAddBtn'])$(id).disabled=active;
+ for(const id of ['playBtn','restartBtn','speed','perspective','validateBtn','sampleBtn','loadScriptBtn','assetAddBtn','safeBottom'])$(id).disabled=active;
  editor.readOnly=active;
  renderAssets();renderCharacters(compiled);
  $('recordBtn').textContent=active?'■ 녹화 중지':'● 녹화';$('recordBtn').classList.toggle('active',active);
@@ -635,6 +662,7 @@ function stopRecording(manual=true){
  }
 }
 
+$('safeBottom').addEventListener('input',e=>setSafeBottom(e.target.value));
 $('recordBtn').addEventListener('click',()=>recordState?stopRecording(true):startRecording());
 $('playBtn').addEventListener('click',play);$('restartBtn').addEventListener('click',()=>reset());$('speed').addEventListener('change',()=>{speed=Number($('speed').value)||1});
 $('perspective').addEventListener('change',()=>reset({recompile:false}));$('validateBtn').addEventListener('click',()=>{reset();prepare({showSuccess:true})});
@@ -643,7 +671,7 @@ $('loadScriptBtn').addEventListener('click',()=>$('scriptFile').click());$('scri
 $('saveScriptBtn').addEventListener('click',()=>downloadText('history-chat.story.txt',editor.value));
 $('assetAddBtn').addEventListener('click',()=>$('assetFiles').click());$('assetFiles').addEventListener('change',async(e)=>{await addAssets(e.target.files);e.target.value=''});
 const drop=$('dropZone');for(const name of ['dragenter','dragover'])drop.addEventListener(name,e=>{e.preventDefault();drop.classList.add('active')});for(const name of ['dragleave','drop'])drop.addEventListener(name,e=>{e.preventDefault();drop.classList.remove('active')});drop.addEventListener('drop',e=>addAssets(e.dataTransfer.files));
-let editTimer;editor.addEventListener('input',()=>{storeScript();clearTimeout(editTimer);editTimer=setTimeout(()=>{if(!isRunning)prepare()},350)});
+let editTimer;editor.addEventListener('input',()=>{storeScript();clearTimeout(editTimer);editTimer=setTimeout(()=>{if(!isRunning)reset()},350)});
 document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();play()} });
 editor.value=loadStored()??SAMPLE;prepare();updateTimeline();loadAllAssets();
 </script>
