@@ -161,59 +161,150 @@
   if(kind==='intro')textBlock(ctx,'조선 · 역사 기반 패러디',35,top+4,290,{size:10,color:'#d3a991',align:'center'});
   if(kind==='outro')textBlock(ctx,'사건의 결말',35,top+4,290,{size:10,color:'#d3a991',align:'center'});
  }
- function chatLines(ctx,entry,width,context){
-  const simple=entry.type==='system';
-  if(simple)return {height:39,entry,rows:measureLines(ctx,entry.text,width-30,10,false,3)};
-  if(entry.type==='image')return {height:190,entry,rows:[]};
-  const shared=entry.type==='share',ref=shared?headerAndBody(context?.getSceneContent?.(entry.target)||''):null;
-  const raw=shared?((ref.title||entry.target)+'\n'+withoutImage(ref.body)):entry.text;
-  const lines=measureLines(ctx,raw,width-64,12.4,false,shared?8:12);
-  const height=21+lines.length*18+14;
-  return {height,entry,rows:lines,shared};
+ function chatPerson(frame,who){
+  const person=frame.episode?.characters?.[who]||{};
+  const name=String(who||'');
+  const colors=['#657f91','#89706d','#777992','#738b7b','#8d7b60','#6b7f89'];
+  let hash=0;for(const ch of name)hash=(hash*31+ch.charCodeAt(0))>>>0;
+  return {avatar:person.avatar||null,color:person.color||colors[hash%colors.length],mark:person.label||name.slice(0,1)};
+ }
+ function chatOwn(frame,who){
+  return who&&(who===(frame.scene.perspective||frame.episode?.settings?.chatPerspective||'숙종'));
+ }
+ function drawChatAvatar(ctx,frame,who,x,y){
+  const person=chatPerson(frame,who);
+  box(ctx,x,y,29,29,person.color,9);
+  const avatar=person.avatar&&image(person.avatar,frame.resolveAsset);
+  if(avatar)renderImage(ctx,avatar,x,y,29,29,true,9);
+  else textBlock(ctx,person.mark,x+1,y+6,27,{size:15,color:'#fff',bold:true,align:'center',maxLines:1});
+ }
+ function chatLines(ctx,entry,available,frame,previous){
+  if(entry.type==='system')return {height:43,entry,rows:measureLines(ctx,entry.text,available-25,10,false,2)};
+  const own=!!chatOwn(frame,entry.who),grouped=previous?.who===entry.who&&previous?.type!=='system';
+  const above=own||grouped?0:18,after=grouped?6:12;
+  let width=221,bh,rows=[];
+  if(entry.type==='image'){
+   width=own?222:212;
+   const img=image(entry.path,frame.resolveAsset);
+   bh=img?clamp(width*img.naturalHeight/img.naturalWidth,80,285):172;
+  }else if(entry.type==='share'){
+   width=220;
+   const content=headerAndBody(frame.getSceneContent?.(entry.target)||'');
+   const preview=(content.title||entry.target)+'\n'+withoutImage(content.body);
+   rows=measureLines(ctx,preview,width-20,12,false,5);
+   bh=43+rows.length*17;
+  }else{
+   rows=measureLines(ctx,entry.text||'',216,12.6,false,20);
+   width=clamp(Math.max(35,...rows.map(r=>r.width+22)),39,244);
+   if(!own)width=Math.min(width,available-48);
+   bh=rows.length*19.3+19;
+  }
+  return {entry,width,bh,rows,above,after,own,grouped,height:above+bh+after};
  }
  function chat(ctx,frame){
-  const safe=safeOf(frame.episode),yTop=Math.round(H*safe.top/100),yBottom=Math.round(H*(1-safe.bottom/100)),right=W*safe.right/100;
-  fill(ctx,'#b8ccdd',0,0,W,H);fill(ctx,'#cddae6',0,yTop,W,44);
-  rectText(ctx,'‹',14,yTop+10,21,'#243848',true);
-  textBlock(ctx,frame.scene.room||frame.episode.title||'단톡방',40,yTop+9,W-right-44,{size:14,bold:true,color:'#20313c',maxLines:1});
-  const list=global.StudioRenderers?.parseChat?.(frame.text)||[];
-  const interval=frame.scene.durationMs/Math.max(1,list.length);
-  const visibleCount=frame.forceAll?list.length:Math.min(list.length,Math.max(0,Math.floor((frame.elapsedMs-200)/interval)+1));
-  const available=W-right-15,begin=yTop+50,end=yBottom-8;
-  const rows=list.slice(0,visibleCount).map(e=>chatLines(ctx,e,available,frame));
-  const total=rows.reduce((v,x)=>v+x.height+8,0);
-  let y=Math.max(begin+5,end-total);
-  ctx.save();ctx.beginPath();ctx.rect(0,begin,W-right+4,end-begin);ctx.clip();
-  for(const b of rows){
-   const item=b.entry;
+  const safe=safeOf(frame.episode),top=Math.round(H*safe.top/100),right=Math.round(W*safe.right/100),bottom=Math.round(H*(1-safe.bottom/100));
+  const chrome=frame.episode?.settings?.chatChrome||'compact';
+  const showInput=chrome==='classic';
+  const headerY=Math.max(top,22),headerH=55;
+  fill(ctx,'#a6bbcf',0,0,W,H);
+  // Reuse the legacy player's visual palette and familiar Kakao-style hierarchy.
+  fill(ctx,'rgba(255,255,255,.08)',0,headerY,W,headerH);
+  fill(ctx,'rgba(34,47,60,.12)',0,headerY+headerH-1,W,1);
+  rectText(ctx,'‹',15,headerY+13,24,'#26313b');
+  const title=String(frame.scene.room||frame.episode.title||'조선 단톡방');
+  const maxTitleWidth=Math.max(145,268-right);
+  textBlock(ctx,title,46,headerY+8,maxTitleWidth,{size:14,bold:true,maxLines:1,color:'#17212b'});
+  const roster=new Set();
+  for(const scene of frame.episode.scenes||[]){
+   if(scene.kind!=='chat'||(scene.room||frame.episode.title)!==title)continue;
+   for(const m of global.StudioRenderers?.parseChat?.(frame.getSceneContent?.(scene.id)||'')||[])if(m.who)roster.add(m.who);
+  }
+  rectText(ctx,'참여자 '+(roster.size||2)+'명',46,headerY+39,10,'#627582');
+  const chatTop=headerY+headerH+4,chatBottom=bottom-(showInput?49:7);
+  const maxRight=Math.max(235,W-right-7),left=12;
+  const room=title,scenes=frame.episode?.scenes||[],before=[];
+  for(const past of scenes){
+   if(past.id===frame.scene.id)break;
+   if(past.kind==='chat'&&(past.room||frame.episode.title)===room){
+    before.push(...(global.StudioRenderers?.parseChat?.(frame.getSceneContent?.(past.id)||'')||[]));
+   }
+  }
+  const current=global.StudioRenderers?.parseChat?.(frame.text)||[];
+  const interval=frame.scene.durationMs/Math.max(1,current.length);
+  const played=frame.forceAll?frame.scene.durationMs:frame.elapsedMs;
+  let count=frame.forceAll?current.length:Math.min(current.length,Math.max(0,Math.floor((played-130)/interval)+1));
+  const visible=[...before,...current.slice(0,count)].slice(-70);
+  const boxes=visible.map((entry,i)=>chatLines(ctx,entry,maxRight-12,frame,visible[i-1]));
+  const baseY=chatTop+11;
+  let vertical=boxes.reduce((v,b)=>v+b.height,0)+16;
+  let reveal=1;
+  if(!frame.forceAll&&count){
+   const timeInto=played-(130+(count-1)*interval);
+   reveal=clamp(timeInto/280,0,1);reveal=1-(1-reveal)**3;
+  }
+  const last=boxes.at(-1);
+  const target=Math.max(0,baseY+vertical-chatBottom-(last?last.height*(1-reveal):0));
+  let y=baseY-target;
+  const canShowTyping=!frame.forceAll&&count<current.length;
+  const nextMoment=130+count*interval;
+  const typing=canShowTyping&&played>nextMoment-Math.min(560,interval*.47);
+  ctx.save();ctx.beginPath();ctx.rect(0,chatTop,W,chatBottom-chatTop);ctx.clip();
+  for(let i=0;i<visible.length;i++){
+   const b=boxes[i],item=b.entry,opacity=i===boxes.length-1&&count?reveal:1;
+   ctx.save();ctx.globalAlpha=clamp(opacity,.01,1);
+   const movement=i===boxes.length-1&&count?(1-reveal)*9:0;
+   const yy=y+movement;
    if(item.type==='system'){
-    const pillWidth=available-28;
-    box(ctx,20,y+3,pillWidth,b.height-4,'rgba(69,93,115,.62)',16);
-    textBlock(ctx,item.text,27,y+9,pillWidth-14,{size:10,color:'#fff',align:'center',maxLines:2});
-    y+=b.height+8;continue;
-   }
-   const name=item.who||'';
-   box(ctx,12,y,26,26,'#627f96',8);
-   textBlock(ctx,name.slice(0,1),15,y+3,20,{size:13,bold:true,color:'#fff',align:'center'});
-   rectText(ctx,name,47,y,10,'#354b5d',true);
-   const bx=45,by=y+17,bw=available-46;
-   box(ctx,bx,by,bw,b.height-18,item.type==='share'?'#fff8e9':'#fff',9);
-   if(item.type==='image'){
-    const img=image(item.path,frame.resolveAsset);
-    box(ctx,bx+6,by+6,bw-12,b.height-30,'#d8e1e8',8);
-    if(img)renderImage(ctx,img,bx+6,by+6,bw-12,b.height-30,false,8);
-    else textBlock(ctx,'사진 연결 필요',bx+10,by+65,bw-20,{size:12,color:'#697e8d',align:'center'});
-   }else if(item.type==='share'){
-    rectText(ctx,'공유한 게시물',bx+9,by+8,10,'#657586');
-    let yy=by+23;
-    for(const row of b.rows){drawLine(ctx,row.atoms,bx+9,yy,12.4,'#263746');yy+=18}
+    const text=item.text||'';
+    font(ctx,10);
+    const w=clamp(textWidth(ctx,text,10)+24,90,maxRight-15);
+    const x=Math.max(10,(maxRight-w)/2+5);
+    box(ctx,x,yy+9,w,26,'rgba(48,70,89,.31)',13);
+    textBlock(ctx,text,x+10,yy+15,w-20,{size:10,color:'#fff',align:'center',maxLines:1});
    }else{
-    let yy=by+9;
-    for(const row of b.rows){drawLine(ctx,row.atoms,bx+9,yy,12.4,'#253543');yy+=18}
+    const bx=b.own?Math.max(left,maxRight-b.width-4):48,by=yy+b.above;
+    if(!b.own&&!b.grouped){
+     drawChatAvatar(ctx,frame,item.who,12,yy);
+     rectText(ctx,item.who,48,yy+7,10,'#354c5b');
+    }
+    const bg=b.own?'#ffdc53':'#ffffff';
+    box(ctx,bx,by,b.width,b.bh,bg,10);
+    // Rounded legacy bubble + subtle depth, not full-width cards.
+    ctx.save();ctx.strokeStyle='rgba(30,45,62,.07)';ctx.lineWidth=.6;
+    rounded(ctx,bx+.3,by+.3,b.width-.6,b.bh-.6,10);ctx.stroke();ctx.restore();
+    if(item.type==='image'){
+     const pic=image(item.path,frame.resolveAsset);
+     if(pic)renderImage(ctx,pic,bx+3,by+3,b.width-6,b.bh-6,true,8);
+     else textBlock(ctx,'사진 미연결',bx+8,by+b.bh/2-8,b.width-16,{size:11,color:'#6e8290',align:'center'});
+    }else if(item.type==='share'){
+     rectText(ctx,'공유한 게시물',bx+11,by+10,10,'#87929d',true);
+     box(ctx,bx+8,by+29,b.width-16,b.bh-36,'#f2f4f6',5);
+     let ry=by+36;
+     for(const row of b.rows){drawLine(ctx,row.atoms,bx+16,ry,12,'#293540');ry+=17}
+    }else{
+     let ry=by+12;
+     for(const row of b.rows){drawLine(ctx,row.atoms,bx+11,ry,12.6,'#222e37');ry+=19.3}
+    }
    }
-   y+=b.height+8;
+   ctx.restore();y+=b.height;
+  }
+  if(typing){
+   const next=current[count],own=!!chatOwn(frame,next?.who),x=own?maxRight-56:48;
+   box(ctx,x,y+1,50,32,own?'#ffdc53':'#fff',10);
+   for(let i=0;i<3;i++){
+    const phase=(played/230+i*.65)%3,dy=phase>1&&phase<2?-2:0;
+    ctx.beginPath();ctx.arc(x+14+i*11,y+17+dy,2.6,0,Math.PI*2);
+    ctx.fillStyle='#9aa8b3';ctx.fill();
+   }
   }
   ctx.restore();
+  if(showInput){
+   fill(ctx,'#fff',0,chatBottom,W,49);
+   fill(ctx,'rgba(25,38,51,.08)',0,chatBottom,W,1);
+   rectText(ctx,'+',14,chatBottom+12,22,'#929da6');
+   box(ctx,42,chatBottom+8,maxRight-48,33,'#f5f6f7',8);
+   rectText(ctx,'메시지 입력',53,chatBottom+19,11,'#a1a9af');
+  }
  }
  function post(ctx,frame){
   const safe=safeOf(frame.episode),top=H*safe.top/100,bottom=H*(1-safe.bottom/100),body=headerAndBody(frame.text),lines=body.body.split('\n');
