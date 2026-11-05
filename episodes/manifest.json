@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "episodes": [
+    {
+      "id": "sukjong-gisa-1689",
+      "title": "숙종 환국 · 기사환국",
+      "description": "1689년 원자 책봉을 둘러싼 조정의 반전",
+      "source": "episodes/sukjong-gisa-1689/episode.json",
+      "status": "draft"
+    }
+  ]
+}
