@@ -10,7 +10,7 @@
 <body>
 <header class="top">
   <div class="brand"><div class="mark">史톡</div><div><h1>조상님 단톡쓰신다 <span class="muted">STUDIO</span></h1><small>에피소드 기반 숏폼 제작 워크스페이스</small></div></div>
-  <div class="header-actions"><span id="saveState" class="status">불러오는 중</span><a class="btn" href="/">기존 단톡 플레이어</a><button id="exportBtn" class="btn primary" type="button">검수용 JSON 내보내기</button></div>
+  <div class="header-actions"><span id="saveState" class="status">불러오는 중</span><a class="btn" href="/">기존 단톡 플레이어</a><button id="exportBtn" class="btn primary" type="button">검수 ZIP 내보내기</button></div>
 </header>
 <main class="main">
   <section class="panel episode-panel" aria-label="에피소드 및 장면 목록">
@@ -46,8 +46,8 @@
       <label for="sceneRoom">채팅방 / 추가 정보</label><input id="sceneRoom" type="text" placeholder="단톡 장면일 때 채팅방 이름">
       <label for="sceneContent">장면 원고 (Markdown / 채팅 형식)</label>
       <textarea id="sceneContent" class="editor-area" spellcheck="false" placeholder="# 1689년, 조선"></textarea>
-      <div class="row buttons" style="margin-top:10px"><button class="btn" id="uploadImageBtn" type="button">+ 이미지 넣기</button><button class="btn" id="saveBtn" type="button">초안 저장</button><button class="btn" id="importBtn" type="button">검수 JSON 가져오기</button></div>
-      <p id="editorHelp" class="hint">채팅: - 인물: 대사 · - [share] 숙종 > announcement · - [kick] 숙종 > 송시열</p>
+      <div class="row buttons" style="margin-top:10px"><button class="btn" id="uploadImageBtn" type="button">+ 이미지 넣기</button><button class="btn" id="saveBtn" type="button">초안 저장</button><button class="btn" id="importBtn" type="button">초안 JSON 가져오기</button></div>
+      <p id="editorHelp" class="hint">검수 ZIP 안에 초안 JSON과 이미지가 포함됨 · 채팅: - 인물: 대사 · - [share] 숙종 > announcement · - [kick] 숙종 > 송시열</p>
       <p id="error" class="hint" style="color:#b34d45" role="status"></p>
     </div>
   </section>
@@ -56,6 +56,7 @@
 <input id="imageFile" type="file" accept="image/*" hidden>
 <input id="importFile" type="file" accept="application/json,.json" hidden>
 <script defer src="studio/renderer.js"></script>
+<script defer src="studio/zip.js"></script>
 <script defer src="studio/app.js"></script>
 </body>
 </html>
