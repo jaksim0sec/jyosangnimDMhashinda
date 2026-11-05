@@ -41,3 +41,8 @@ This repository is a **browser-based episode editor for historical parody Shorts
 - Distinguish **code/JSON validity**, **deployed HTTP readiness**, **actual UI test**, and **recorded-video validation**. Do not claim the latter two unless performed.
 - Exported review ZIP is a handoff, **not a GitHub publication**. Agent applies its contents through approved GitHub tools, ideally in a reviewable PR.
 - For a complete request, report implemented vs deferred items explicitly.
+
+## Canonical UI icon pack
+- Source: `jaksim0sec/questYourLife` branch `new`, `docs/design/seed/assets/icons/v0.14/`. Exactly 56 user-approved Soft SVG assets, mirrored under `studio/icons/svg/` without shape edits.
+- Manifest: `studio/icons/manifest.json`. UI component: `studio/icons.js`; gallery: `studio.html`; scene syntax `:icon(name):`; renderer: `studio/renderer.js`.
+- Prefer this icon family over emoji, arbitrary Unicode glyphs or new SVG drawings in Studio editing controls. Never synthesize Fill versions except the five real files. Do not alter the legacy player just to propagate icon styling.
