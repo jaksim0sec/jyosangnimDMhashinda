@@ -104,7 +104,9 @@
  function clearAssetURLs(){for(const url of state.assets.values())URL.revokeObjectURL(url);state.assets.clear()}
  async function loadAssets(id){
   clearAssetURLs();
+  window.StudioCanvas?.clear();
   for(const row of await assetRows(id))state.assets.set(row.path,URL.createObjectURL(row.blob));
+  renderMediaGallery();
  }
  function resolveAsset(ref){
   const value=String(ref||'').trim();
@@ -130,7 +132,8 @@
    const missing=await window.StudioCanvas.preload(state.episode,state.contents,resolveAsset);
    if(missing.length)error('이미지 '+missing.length+'개를 불러오지 못했습니다. 사진을 연결해 주세요.');
    selectOptions();renderTimeline();editScene(state.activeId);updateStage(activeScene());
-   setStatus(draft?'로컬 초안 · '+new Date(draft.savedAt||Date.now()).toLocaleTimeString():'GitHub 배포본',!!draft);
+   const outdated=baseline.remote&&draft&&Number(draft.baseVersion)!==Number(baseline.episode.version);
+   setStatus(outdated?'GitHub 갱신됨 · 기존 로컬 초안 유지':draft?'로컬 초안 · '+new Date(draft.savedAt||Date.now()).toLocaleTimeString():'GitHub 배포본',!!draft);
    $('resetBtn').disabled=!baseline.remote;
   }catch(e){error(e.message);setStatus('불러오기 실패')}
   finally{state.loading=false;$('episodeSelect').disabled=false}
@@ -382,17 +385,73 @@
   setTimeout(()=>URL.revokeObjectURL(url),15000);
  }
  function safeName(name){return String(name).replace(/[^a-zA-Z0-9._가-힣-]/g,'_').replace(/^\.+/,'').slice(0,100)||'image.png'}
+ function renderMediaGallery(){
+  const host=$('mediaGrid');host.replaceChildren();
+  $('mediaCount').textContent=state.assets.size+'개 · 이 에피소드 전용';
+  if(!state.assets.size){
+   const note=document.createElement('p');note.className='hint';note.textContent='업로드한 사진이 아직 없음';
+   host.append(note);return;
+  }
+  for(const [path,url] of state.assets){
+   const card=document.createElement('div');card.className='media-card';
+   const img=document.createElement('img');img.src=url;img.alt=path;img.loading='lazy';
+   const name=document.createElement('span');name.className='media-name';name.textContent=path.split('/').pop();name.title=path;
+   const insert=document.createElement('button');insert.type='button';insert.textContent='장면에 추가';
+   insert.disabled=!!video.recording;insert.addEventListener('click',()=>insertMedia(path));
+   const remove=document.createElement('button');remove.type='button';remove.className='media-remove';remove.textContent='삭제';
+   remove.disabled=!!video.recording;remove.addEventListener('click',()=>deleteMedia(path));
+   card.append(img,name,insert,remove);host.append(card);
+  }
+ }
+ function insertMedia(path){
+  const scene=activeScene();if(!scene||video.recording){error('장면을 선택한 뒤 사진을 삽입해 주세요');return}
+  const field=$('sceneContent'),start=field.selectionStart??field.value.length,end=field.selectionEnd??start;
+  let item='![사진]('+path+')';
+  if(scene.kind==='chat'){
+   const chat=window.StudioRenderers.parseChat(field.value);
+   const previous=[...chat].reverse().find(msg=>msg.who)?.who||'숙종';
+   item='- [image] '+previous+' > '+path;
+   if(start>0&&!field.value.slice(0,start).endsWith('\n'))item='\n'+item;
+  }
+  field.setRangeText(item,start,end,'end');field.dispatchEvent(new Event('input',{bubbles:true}));field.focus();
+ }
+ function deleteMedia(path){
+  if(video.recording)return;
+  const referenced=Object.values(state.contents).some(text=>text.includes(path));
+  if(!confirm(referenced?'이 사진을 사용하는 장면이 있음. 이미지를 삭제하면 해당 장면에 빈자리가 표시됩니다. 삭제할까요?':'이 에피소드의 사진을 삭제할까요?'))return;
+  if(!state.db){error('이미지 저장소를 사용할 수 없음');return}
+  const tx=state.db.transaction('assets','readwrite');
+  tx.objectStore('assets').delete({key:state.id+'|'+path}.key);
+  tx.oncomplete=()=>{
+   const url=state.assets.get(path);if(url)URL.revokeObjectURL(url);
+   state.assets.delete(path);window.StudioCanvas.clear();renderMediaGallery();preloadScenes();
+  };
+  tx.onerror=()=>error('사진 삭제 실패: '+(tx.error?.message||'DB 오류'));
+ }
+ async function storeAssetBatch(episodeId,records){
+  if(!records.length)return;
+  if(!state.db)throw Error('이미지 저장소 IndexedDB를 사용할 수 없음');
+  return new Promise((resolve,reject)=>{
+   const tx=state.db.transaction('assets','readwrite');
+   const store=tx.objectStore('assets');
+   for(const record of records)store.put({key:episodeId+'|'+record.path,episodeId,path:record.path,blob:record.blob});
+   tx.oncomplete=()=>resolve();
+   tx.onerror=()=>reject(tx.error||Error('이미지 일괄 저장 실패'));
+   tx.onabort=()=>reject(tx.error||Error('이미지 저장 취소'));
+  });
+ }
  async function uploadImage(file){
   if(!file||!file.type.startsWith('image/'))throw Error('이미지 파일만 업로드 가능');
   if(file.size>25*1024*1024)throw Error('이미지는 25MB 이하만 지원');
   const scene=activeScene();if(!scene)throw Error('장면을 먼저 추가해 주세요');
-  let path='assets/'+safeName(file.name);
+  const name=safeName(file.name),dot=name.lastIndexOf('.'),stem=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';
+  let path='assets/'+name,n=1;
+  while(state.assets.has(path)){n++;path='assets/'+stem+'-'+n+ext}
   await putAsset(state.id,path,file);
   const old=state.assets.get(path);if(old)URL.revokeObjectURL(old);
   state.assets.set(path,URL.createObjectURL(file));
-  state.contents[scene.id]=(state.contents[scene.id]||'').trimEnd()+'\n\n![사진]('+path+')';
-  $('sceneContent').value=state.contents[scene.id];
-  scheduleSave();updateStage(scene);
+  renderMediaGallery();insertMedia(path);
+  await preloadScenes();
  }
  async function exportReview(){
   if(!state.episode)return;
@@ -463,7 +522,7 @@
   $('sceneVariant').addEventListener('change',e=>changeField('variant',e.target.value));
   $('transition').addEventListener('change',e=>changeField('transition',e.target.value));
   $('sceneRoom').addEventListener('input',e=>changeField('room',e.target.value));
-  $('sceneContent').addEventListener('input',e=>{if(!activeScene())return;state.contents[state.activeId]=e.target.value;scheduleSave();updateStage(activeScene())});
+  $('sceneContent').addEventListener('input',e=>{if(!activeScene())return;state.contents[state.activeId]=e.target.value;scheduleSave();updateStage(activeScene());preloadScenes().catch(err=>error(err.message))});
   $('saveBtn').addEventListener('click',immediateSave);
   $('playBtn').addEventListener('click',togglePlayback);
   $('recordBtn').addEventListener('click',recordClick);
