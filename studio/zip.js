@@ -31,5 +31,34 @@
   tail.setUint32(12,directorySize,true);tail.setUint32(16,offset,true);
   return new Blob([...chunks,...central,end],{type:'application/zip'});
  }
- global.StudioZip=Object.freeze({build});
+ async function read(blob){
+  if(!(blob instanceof Blob)||blob.size<22||blob.size>256*1024*1024)throw Error('ZIP 파일은 256MB 이하만 가능');
+  const entries=[],decoder=new TextDecoder(),seen=new Set();let at=0,total=0;
+  while(at+4<=blob.size){
+   const signature=new DataView(await blob.slice(at,at+4).arrayBuffer()).getUint32(0,true);
+   if(signature===0x02014b50||signature===0x06054b50)break;
+   if(signature!==0x04034b50)throw Error('지원되지 않는 ZIP 구조');
+   const head=new DataView(await blob.slice(at,at+30).arrayBuffer());
+   if(head.byteLength<30)throw Error('ZIP 헤더가 손상됨');
+   const flags=head.getUint16(6,true),method=head.getUint16(8,true);
+   if((flags&8)||method!==0)throw Error('Studio ZIP은 압축 없는 파일만 지원함');
+   const crc=head.getUint32(14,true),compressed=head.getUint32(18,true),plain=head.getUint32(22,true);
+   const nameLength=head.getUint16(26,true),extraLength=head.getUint16(28,true);
+   if(!nameLength||nameLength>1024||compressed!==plain||plain>26*1024*1024)throw Error('ZIP 파일 크기 또는 경로가 유효하지 않음');
+   const filename=decoder.decode(await blob.slice(at+30,at+30+nameLength).arrayBuffer());
+   if(!isSafePath(filename)||seen.has(filename))throw Error('ZIP 경로 중복 또는 위험한 경로');
+   seen.add(filename);
+   const start=at+30+nameLength+extraLength,end=start+plain;
+   if(end>blob.size)throw Error('ZIP 파일이 중간에 잘림');
+   const slice=blob.slice(start,end);const bytes=new Uint8Array(await slice.arrayBuffer());
+   if(checksum(bytes)!==crc)throw Error('ZIP 파일 체크섬 불일치: '+filename);
+   total+=plain;if(total>240*1024*1024)throw Error('ZIP 합계 크기 제한 초과');
+   entries.push({path:filename,blob:slice,size:plain});
+   if(entries.length>500)throw Error('ZIP 항목이 너무 많음');
+   at=end;
+  }
+  if(!entries.length)throw Error('ZIP 내부 파일이 없음');
+  return entries;
+ }
+ global.StudioZip=Object.freeze({build,read});
 })(window);
