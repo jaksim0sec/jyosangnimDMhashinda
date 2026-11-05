@@ -164,6 +164,7 @@
  function chatLines(ctx,entry,width,context){
   const simple=entry.type==='system';
   if(simple)return {height:39,entry,rows:measureLines(ctx,entry.text,width-30,10,false,3)};
+  if(entry.type==='image')return {height:190,entry,rows:[]};
   const shared=entry.type==='share',ref=shared?headerAndBody(context?.getSceneContent?.(entry.target)||''):null;
   const raw=shared?((ref.title||entry.target)+'\n'+withoutImage(ref.body)):entry.text;
   const lines=measureLines(ctx,raw,width-64,12.4,false,shared?8:12);
@@ -197,7 +198,12 @@
    rectText(ctx,name,47,y,10,'#354b5d',true);
    const bx=45,by=y+17,bw=available-46;
    box(ctx,bx,by,bw,b.height-18,item.type==='share'?'#fff8e9':'#fff',9);
-   if(item.type==='share'){
+   if(item.type==='image'){
+    const img=image(item.path,frame.resolveAsset);
+    box(ctx,bx+6,by+6,bw-12,b.height-30,'#d8e1e8',8);
+    if(img)renderImage(ctx,img,bx+6,by+6,bw-12,b.height-30,false,8);
+    else textBlock(ctx,'사진 연결 필요',bx+10,by+65,bw-20,{size:12,color:'#697e8d',align:'center'});
+   }else if(item.type==='share'){
     rectText(ctx,'공유한 게시물',bx+9,by+8,10,'#657586');
     let yy=by+23;
     for(const row of b.rows){drawLine(ctx,row.atoms,bx+9,yy,12.4,'#263746');yy+=18}
@@ -275,6 +281,7 @@
   for(const scene of episode.scenes||[]){
    const text=String(contents[scene.id]||'');
    for(const match of text.matchAll(/!\[[^\]]*\]\(([^)\n]+)\)/g))refs.add(match[1].trim());
+   for(const msg of global.StudioRenderers?.parseChat?.(text)||[])if(msg.type==='image')refs.add(msg.path);
    for(const match of text.matchAll(/:icon\(([a-z][a-z0-9-]*)\):/g))icons.add(match[1]);
   }
   for(const name of ['heart','repeat','chat','share','left','menu'])icons.add(name);
