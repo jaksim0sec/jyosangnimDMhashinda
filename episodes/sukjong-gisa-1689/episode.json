@@ -3,7 +3,7 @@
   "id": "sukjong-gisa-1689",
   "title": "숙종 환국 · 기사환국",
   "description": "역사 기반 현대 SNS·단톡 창작 패러디",
-  "version": 1,
+  "version": 2,
   "settings": {
     "aspectRatio": "9:16",
     "safeArea": {
@@ -14,7 +14,9 @@
     "resolution": [
       720,
       1280
-    ]
+    ],
+    "chatPerspective": "숙종",
+    "chatChrome": "compact"
   },
   "scenes": [
     {
@@ -29,7 +31,7 @@
       "id": "council",
       "kind": "chat",
       "src": "scenes/council.chat",
-      "durationMs": 5500,
+      "durationMs": 4200,
       "transition": "cut",
       "variant": "kakao",
       "room": "조선 국정운영위원회"
@@ -46,7 +48,7 @@
       "id": "reaction",
       "kind": "chat",
       "src": "scenes/reaction.chat",
-      "durationMs": 4200,
+      "durationMs": 3500,
       "transition": "cut",
       "variant": "kakao",
       "room": "조선 국정운영위원회"
@@ -63,10 +65,11 @@
       "id": "purge",
       "kind": "chat",
       "src": "scenes/purge.chat",
-      "durationMs": 5100,
+      "durationMs": 3200,
       "transition": "cut",
       "variant": "royal-purge",
-      "room": "조선 국정운영위원회"
+      "room": "조선 국정운영위원회",
+      "paceMs": 420
     },
     {
       "id": "outro",
@@ -76,5 +79,19 @@
       "transition": "fade",
       "variant": "dark"
     }
-  ]
+  ],
+  "characters": {
+    "숙종": {
+      "color": "#8f785e"
+    },
+    "서인": {
+      "color": "#607687"
+    },
+    "남인": {
+      "color": "#7d8c72"
+    },
+    "송시열": {
+      "color": "#718094"
+    }
+  }
 }
