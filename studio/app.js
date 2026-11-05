@@ -425,8 +425,30 @@
   setTimeout(()=>URL.revokeObjectURL(url),15000);
  }
  function safeName(name){return String(name).replace(/[^a-zA-Z0-9._가-힣-]/g,'_').replace(/^\.+/,'').slice(0,100)||'image.png'}
+ function characterNames(){
+  const found=new Set(Object.keys(state.episode?.characters||{}));
+  for(const scene of state.episode?.scenes||[])if(scene.kind==='chat'){
+   for(const msg of window.StudioRenderers.parseChat(state.contents[scene.id]||''))if(msg.who)found.add(msg.who);
+  }
+  return [...found].sort((a,b)=>a.localeCompare(b,'ko'));
+ }
+ async function setAvatar(path){
+  if(video.recording||!state.episode)return;
+  const name=$('avatarTarget').value;
+  if(!name){error('프사로 지정할 등장인물을 선택해 주세요');return}
+  state.episode.characters??={};
+  state.episode.characters[name]??={};
+  state.episode.characters[name].avatar=path;
+  scheduleSave();window.StudioCanvas.clear();await preloadScenes();
+  renderMediaGallery();error('');
+ }
  function renderMediaGallery(){
   const host=$('mediaGrid');host.replaceChildren();
+  const target=$('avatarTarget'),selected=target.value;
+  target.replaceChildren();
+  const names=characterNames();
+  for(const who of names)target.add(new Option(who,who));
+  if(names.includes(selected))target.value=selected;
   $('mediaCount').textContent=state.assets.size+'개 · 이 에피소드 전용';
   if(!state.assets.size){
    const note=document.createElement('p');note.className='hint';note.textContent='업로드한 사진이 아직 없음';
@@ -438,9 +460,12 @@
    const name=document.createElement('span');name.className='media-name';name.textContent=path.split('/').pop();name.title=path;
    const insert=document.createElement('button');insert.type='button';insert.textContent='장면에 추가';
    insert.disabled=!!video.recording;insert.addEventListener('click',()=>insertMedia(path));
+   const avatar=document.createElement('button');avatar.type='button';avatar.textContent='프사로 지정';
+   avatar.disabled=!!video.recording||!characterNames().length;
+   avatar.addEventListener('click',()=>setAvatar(path));
    const remove=document.createElement('button');remove.type='button';remove.className='media-remove';remove.textContent='삭제';
    remove.disabled=!!video.recording;remove.addEventListener('click',()=>deleteMedia(path));
-   card.append(img,name,insert,remove);host.append(card);
+   card.append(img,name,insert,avatar,remove);host.append(card);
   }
  }
  function insertMedia(path){
@@ -457,7 +482,7 @@
  }
  function deleteMedia(path){
   if(video.recording)return;
-  const referenced=Object.values(state.contents).some(text=>text.includes(path));
+  const referenced=Object.values(state.contents).some(text=>text.includes(path))||Object.values(state.episode.characters||{}).some(person=>person?.avatar===path);
   if(!confirm(referenced?'이 사진을 사용하는 장면이 있음. 이미지를 삭제하면 해당 장면에 빈자리가 표시됩니다. 삭제할까요?':'이 에피소드의 사진을 삭제할까요?'))return;
   if(!state.db){error('이미지 저장소를 사용할 수 없음');return}
   const tx=state.db.transaction('assets','readwrite');
