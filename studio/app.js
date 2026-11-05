@@ -125,7 +125,8 @@
    state.dirty=!!draft;state.unsaved=false;
    $('episodeTitle').value=state.episode.title;
    await loadAssets(id);
-   selectOptions();renderTimeline();editScene(state.activeId);
+   player.index=0;player.elapsed=0;
+   selectOptions();renderTimeline();editScene(state.activeId);updateStage(activeScene());
    setStatus(draft?'로컬 초안 · '+new Date(draft.savedAt||Date.now()).toLocaleTimeString():'GitHub 배포본',!!draft);
    $('resetBtn').disabled=!baseline.remote;
   }catch(e){error(e.message);setStatus('불러오기 실패')}
@@ -338,7 +339,7 @@
   }catch(e){error('가져오기 실패: '+e.message)}
  }
  function installEvents(){
-  $('episodeSelect').addEventListener('change',e=>{clearTimeout(state.saveTimer);switchEpisode(e.target.value)});
+  $('episodeSelect').addEventListener('change',e=>{if(state.unsaved)immediateSave();clearTimeout(state.saveTimer);switchEpisode(e.target.value)});
   $('newEpisodeBtn').addEventListener('click',newEpisode);
   $('resetBtn').addEventListener('click',resetDraft);
   $('addSceneBtn').addEventListener('click',addScene);
