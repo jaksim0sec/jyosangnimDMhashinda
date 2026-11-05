@@ -34,3 +34,31 @@ select{cursor:pointer}.row{display:flex;gap:8px;align-items:center}.row>*{min-wi
 .editor-area{resize:vertical;min-height:235px;max-height:60vh;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.7}.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field-grid label{margin-bottom:6px}.footer{font-size:11px;color:var(--muted);padding:0 20px 24px;text-align:center;max-width:1550px;margin:auto}.busy{opacity:.6;pointer-events:none}
 @media(max-width:1180px){.main{grid-template-columns:minmax(230px,300px) 1fr}.editor-panel{grid-column:2;grid-row:1/span 2}.preview-panel{grid-column:1;grid-row:2}.stage{max-width:300px}}
 @media(max-width:800px){header.top{padding:12px 15px;align-items:flex-start}.header-actions{justify-content:flex-end}.header-actions a{display:none}.main{display:flex;flex-direction:column;padding:12px;gap:12px}.panel{width:100%}.preview-panel{order:1}.episode-panel{order:2}.editor-panel{order:3}.stage{max-width:320px}.brand h1{font-size:14px}}
+
+
+/* Soft SVG icons — original source geometry through CSS mask / currentColor. */
+.studio-icon{display:inline-block;flex:none;width:18px;height:18px;background:currentColor;
+  -webkit-mask-image:var(--studio-icon-url);mask-image:var(--studio-icon-url);
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-position:center;mask-position:center;
+  -webkit-mask-size:contain;mask-size:contain;
+  vertical-align:-.19em}
+.scene-inline-icon{margin:0 .08em;vertical-align:-.22em}
+.icon-library{margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fbfcfd}
+.icon-library summary{cursor:pointer;list-style:none;padding:12px 14px;display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:12px}
+.icon-library summary::-webkit-details-marker{display:none}
+.icon-library summary::after{content:'⌄';font-size:16px;color:#8794a0}
+.icon-library[open] summary::after{content:'⌃'}
+.icon-library summary span{font-size:11px}
+.icon-library-body{border-top:1px solid var(--line);padding:12px}
+.icon-library-body label{margin:0 0 6px}
+.icon-library-body input{font-size:12px}
+.icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:7px;max-height:320px;overflow-y:auto;margin-top:11px;padding:1px;scrollbar-width:thin}
+.icon-card{display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;min-width:0;border:1px solid #e4e9ec;border-radius:10px;background:#fff;overflow:hidden}
+.icon-pick{background:none;border:0;color:#273745;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:10px 4px 8px;min-height:71px;width:100%}
+.icon-pick:hover,.icon-pick:focus-visible{background:#f9eae5;color:#ae4f39}
+.icon-label{font-size:9.5px;line-height:1.3;word-break:break-word;text-align:center;color:#667582}
+.icon-copy{font-size:10px;font-weight:650;border:0;border-top:1px solid #e9ecef;background:#f7f9fb;min-height:28px;color:#667582}
+.icon-copy:hover,.icon-copy:focus-visible{color:#b3503d;background:#ffede7}
+.studio-post-actions{display:flex;justify-content:space-between;align-items:center;letter-spacing:normal}
+@media(max-width:800px){.icon-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));max-height:270px}}
