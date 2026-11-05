@@ -55,3 +55,8 @@ This repository is a **browser-based episode editor for historical parody Shorts
 - Add special UI only as a reviewed module under `studio/variants/`; register `kind:variant` using `StudioCanvas.register`. Only explicitly listed scripts should load. Never evaluate JS from Markdown/episode JSON.
 - The Studio recorder uses browser MediaRecorder (WebM/no audio) and does not auto-publish to GitHub. Preserve legacy `index.html` and its storage.
 - Distinguish syntax and in-memory render validation from actual browser/mobile record/playback tests.
+
+## Mandatory chat visual parity
+- Before changing video canvas rendering or chat animation, read `docs/studio/VISUAL_PARITY.md` and compare with the original `index.html` player.
+- Don't replace compact sender-specific bubbles with full-width cards, remove left/right perspective, drop previous room history, or animate only hidden DOM.
+- Distinguish recorder parity tests from visual approval and actual mobile WebM playback.
