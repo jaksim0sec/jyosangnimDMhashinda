@@ -78,3 +78,12 @@ Automatic authenticated GitHub publishing **is not implemented** and must never 
 - **v1:** reliable scene transitions and output QA, production publishing gates.
 
 Acceptance for each stage is behavioral. JSON validity or deployment READY alone does not prove video capture or mobile UI quality.
+
+## Shared SVG icon contract · Soft v0.14
+
+All 56 canonical user-supplied icons from `questYourLife/new` are vendored verbatim at `studio/icons/svg/<name>.svg`; manifest at `studio/icons/manifest.json`. Geometry must not be auto-redrawn. Base: 32 outline, 5 independent fill, 19 additional outline. The five Fill variants are actual files, not CSS fill of outline.
+
+- Renderer: `StudioIcons.icon(name,{size:18})` creates a safe, semantic CSS-mask element inheriting `currentColor`; size is clamped to 12–48px.
+- Scene authoring: `:icon(name):` is an optional text token, usable in narrative, chat messages, SNS text and headings. Missing/unknown names are shown literally, never interpolated as HTML.
+- Editor: the collapsible icon gallery reads the manifest, supports name filtering, click-to-insert and name copying. Icons are UI pictograms, not a substitute for historical photographs or 3D artwork.
+- Source provenance and limitations: [icon README](../../studio/icons/README.md). Inline SVG mask IDs are never copied into DOM; external SVG is rendered as a CSS mask to avoid ID collisions and preserve the original files.
