@@ -17,6 +17,7 @@
  };
  const state={manifest:[],localIndex:[],id:null,base:null,episode:null,contents:{},baseContents:{},activeId:null,dirty:false,unsaved:false,loading:false,assets:new Map(),db:null,saveTimer:null};
  const player={playing:false,index:0,elapsed:0,lastAt:0,raf:0};
+ const video={recording:null,preparing:false,lastUrl:null};
  function error(message){$('error').textContent=message||''}
  function setStatus(value,saved=false){$('saveState').textContent=value;$('saveState').classList.toggle('saved',saved)}
  function key(id){return DRAFT+id}
@@ -126,6 +127,8 @@
    $('episodeTitle').value=state.episode.title;
    await loadAssets(id);
    player.index=0;player.elapsed=0;
+   const missing=await window.StudioCanvas.preload(state.episode,state.contents,resolveAsset);
+   if(missing.length)error('이미지 '+missing.length+'개를 불러오지 못했습니다. 사진을 연결해 주세요.');
    selectOptions();renderTimeline();editScene(state.activeId);updateStage(activeScene());
    setStatus(draft?'로컬 초안 · '+new Date(draft.savedAt||Date.now()).toLocaleTimeString():'GitHub 배포본',!!draft);
    $('resetBtn').disabled=!baseline.remote;
@@ -173,6 +176,23 @@
   if(player.raf)cancelAnimationFrame(player.raf);
   player.raf=0;$('playBtn').textContent='▶ 재생';
  }
+ function drawFrame(forceAll=!player.playing){
+  const scene=state.episode?.scenes[player.index]||activeScene();
+  if(!scene)return;
+  try{
+   window.StudioCanvas.frame($('videoCanvas'),{
+    scene,text:state.contents[scene.id]||'',episode:state.episode,
+    elapsedMs:forceAll?scene.durationMs:player.elapsed,forceAll,
+    resolveAsset,getSceneContent:id=>state.contents[id]||''
+   });
+  }catch(e){error('영상 렌더링 오류: '+e.message);if(video.recording)stopRecording(true)}
+ }
+ async function preloadScenes(){
+  if(!state.episode)return [];
+  const missing=await window.StudioCanvas.preload(state.episode,state.contents,resolveAsset);
+  drawFrame();return missing;
+ }
+
  function setProgress(){
   if(!state.episode)return;
   const list=state.episode.scenes,total=Math.max(1,totalDuration());
@@ -183,12 +203,12 @@
  }
  function updateStage(scene){
   const host=$('sceneContainer');host.replaceChildren();host.className='scene';
-  if(!scene){host.append(document.createTextNode('장면을 선택해 주세요'));setProgress();return}
+  if(!scene){host.append(document.createTextNode('장면을 선택해 주세요'));const ctx=$('videoCanvas').getContext('2d');ctx.clearRect(0,0,720,1280);setProgress();return}
   const context={episode:state.episode,resolveAsset,getSceneContent:id=>state.contents[id]||''};
   try{host.append(window.StudioRenderers.render(scene,state.contents[scene.id]||'',context))}
   catch(e){error('미리보기 오류: '+e.message)}
   if(scene.transition==='fade')host.classList.add('is-fading');
-  setProgress();
+  drawFrame();setProgress();
  }
  function selectScene(id,fromPlayer=false){
   if(!fromPlayer)stopPlayer();
@@ -257,13 +277,16 @@
    player.elapsed-=current.durationMs;player.index++;
    current=state.episode.scenes[player.index];
    if(!current){
-    stopPlayer();player.index=state.episode.scenes.length-1;player.elapsed=state.episode.scenes.at(-1)?.durationMs||0;setProgress();return;
+    stopPlayer();player.index=state.episode.scenes.length-1;player.elapsed=state.episode.scenes.at(-1)?.durationMs||0;drawFrame(true);setProgress();
+    if(video.recording)stopRecording(false);
+    return;
    }
    state.activeId=current.id;renderTimeline();editScene(current.id);updateStage(current);
   }
-  setProgress();player.raf=requestAnimationFrame(frame);
+  drawFrame(false);setProgress();player.raf=requestAnimationFrame(frame);
  }
  function togglePlayback(){
+  if(video.recording||video.preparing)return;
   const scenes=state.episode?.scenes||[];
   if(!scenes.length)return;
   if(player.playing){stopPlayer();return}
@@ -271,6 +294,87 @@
   if(player.index>=scenes.length)player.index=0;
   if(player.elapsed>=scenes[player.index].durationMs){player.index=0;player.elapsed=0}
   $('playBtn').textContent='Ⅱ 정지';player.raf=requestAnimationFrame(frame);
+ }
+ function recordingUI(active){
+  for(const id of ['episodeSelect','newEpisodeBtn','resetBtn','addSceneBtn','newKind','episodeTitle','sceneKind','duration','sceneVariant','transition','sceneRoom','sceneContent','uploadImageBtn','saveBtn','importBtn','importZipBtn','exportBtn','playBtn']){
+   const elem=$(id);if(elem)elem.disabled=active;
+  }
+  $('recordBtn').disabled=false;
+  $('recordBtn').textContent=active?'■ 녹화 중지':'● 녹화';
+  $('recordBtn').classList.toggle('recording',active);
+  $('recordBtn').setAttribute('aria-pressed',active?'true':'false');
+ }
+ async function startRecording(){
+  if(video.recording||video.preparing)return;
+  if(!window.MediaRecorder||!$('videoCanvas').captureStream){error('이 브라우저는 Canvas 영상 녹화를 지원하지 않음');return}
+  if(!state.episode?.scenes.length){error('녹화할 장면이 없음');return}
+  video.preparing=true;$('recordBtn').disabled=true;
+  $('recordHelp').textContent='장면 이미지 준비 중…';
+  try{
+   const missing=await preloadScenes();
+   if(missing.length)error('이미지 '+missing.join(', ')+'을 찾지 못해 빈자리로 녹화됨');
+   stopPlayer();player.index=0;player.elapsed=0;player.lastAt=0;
+   const canvas=$('videoCanvas');drawFrame(false);
+   const stream=canvas.captureStream(30);
+   const types=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+   const mimeType=types.find(t=>MediaRecorder.isTypeSupported(t));
+   if(!mimeType){stream.getTracks().forEach(t=>t.stop());throw Error('WebM 비디오 코덱을 지원하지 않음')}
+   let recorder;
+   try{recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:3600000})}
+   catch(e){stream.getTracks().forEach(t=>t.stop());throw e}
+   const current={recorder,stream,mimeType,chunks:[],startedAt:0,endedAt:null,failed:false,missing,finishing:false};
+   video.recording=current;
+   recorder.ondataavailable=e=>{if(e.data?.size)current.chunks.push(e.data)};
+   recorder.onerror=e=>{current.failed=true;error('녹화 오류: '+(e.error?.message||'알 수 없는 오류'));stopRecording(true)};
+   recorder.onstop=async()=>{
+    try{
+     const original=new Blob(current.chunks,{type:current.mimeType});
+     if(original.size<1000||current.failed)throw Error('영상이 정상적으로 기록되지 않음');
+     const ms=Math.max(1,Math.round((current.endedAt??performance.now())-current.startedAt));
+     const result=await window.StudioWebM.fixDuration(original,ms);
+     const file=result.blob;
+     if(video.lastUrl)URL.revokeObjectURL(video.lastUrl);
+     video.lastUrl=URL.createObjectURL(file);
+     const a=$('recordDownload');a.href=video.lastUrl;
+     a.download=state.id+'-'+new Date().toISOString().replace(/[:.]/g,'-')+'.webm';
+     a.classList.remove('hidden');a.click();
+     $('recordHelp').textContent='녹화 완료 · '+(ms/1000).toFixed(1)+'초 · '+(file.size/1024/1024).toFixed(1)+' MB · '+(result.ok?'길이 정보 보정됨':'길이 정보 미확인');
+     if(!result.ok)error('길이 메타데이터 보정 불가: '+result.note);
+    }catch(e){
+     error('영상 저장 실패: '+e.message);$('recordHelp').textContent='영상 저장 실패';
+    }finally{
+     current.stream.getTracks().forEach(t=>t.stop());
+     if(video.recording===current)video.recording=null;
+     video.preparing=false;recordingUI(false);drawFrame(true);
+    }
+   };
+   recorder.start(250);current.startedAt=performance.now();
+   video.preparing=false;recordingUI(true);
+   $('recordDownload').classList.add('hidden');
+   $('recordHelp').textContent='● 녹화 중 · '+fmt(totalDuration())+'분량 · 끝나면 자동 저장';
+   player.playing=true;player.lastAt=0;player.raf=requestAnimationFrame(frame);
+  }catch(e){
+   video.preparing=false;video.recording=null;$('recordBtn').disabled=false;
+   recordingUI(false);error('녹화 시작 실패: '+e.message);
+   $('recordHelp').textContent='녹화할 수 없음 · 브라우저와 이미지 확인';
+  }
+ }
+ function stopRecording(manual=true){
+  const current=video.recording;if(!current||current.finishing)return;
+  current.finishing=true;if(current.endedAt===null)current.endedAt=performance.now();
+  stopPlayer();
+  const recorder=current.recorder;
+  $('recordHelp').textContent='영상 저장 중…';
+  $('recordBtn').disabled=true;
+  if(recorder.state!=='inactive'){
+   try{recorder.requestData()}catch(_){}
+   try{recorder.stop()}catch(e){error('녹화 종료 실패: '+e.message)}
+  }
+  if(manual)drawFrame(true);
+ }
+ function recordClick(){
+  if(video.recording)stopRecording(true);
+  else startRecording();
  }
  function download(blob,filename){
   const url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -362,6 +466,8 @@
   $('sceneContent').addEventListener('input',e=>{if(!activeScene())return;state.contents[state.activeId]=e.target.value;scheduleSave();updateStage(activeScene())});
   $('saveBtn').addEventListener('click',immediateSave);
   $('playBtn').addEventListener('click',togglePlayback);
+  $('recordBtn').addEventListener('click',recordClick);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&video.recording){error('화면이 숨겨져 녹화를 종료함 · 저장 파일 확인 필요');stopRecording(true)}});
   $('guideToggle').addEventListener('change',e=>$('guides').classList.toggle('hidden',!e.target.checked));
   $('exportBtn').addEventListener('click',exportReview);
   $('uploadImageBtn').addEventListener('click',()=>$('imageFile').click());
