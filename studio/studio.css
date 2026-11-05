@@ -78,3 +78,5 @@ select{cursor:pointer}.row{display:flex;gap:8px;align-items:center}.row>*{min-wi
 .media-card .media-remove{color:#a54d45;background:#fff8f6}
 .media-card .media-remove:disabled{opacity:.4}
 #recordHelp{max-width:340px}
+
+.studio-chat-photo{background:#fff;padding:5px;border-radius:9px;width:min(100%,235px)}.studio-chat-photo img{width:100%;max-height:210px;object-fit:contain;display:block;border-radius:6px}
