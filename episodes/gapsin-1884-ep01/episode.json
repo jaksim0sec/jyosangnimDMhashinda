@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "id": "gapsin-1884-ep01",
+  "title": "갑신정변 1화 · 조선의 알림 폭주",
+  "description": "19세기 후반~임오군란·청의 흥선대원군 연행까지의 초반 연출",
+  "version": 1,
+  "settings": {
+    "aspectRatio": "9:16",
+    "resolution": [
+      720,
+      1280
+    ],
+    "safeArea": {
+      "top": 12,
+      "right": 17,
+      "bottom": 21
+    },
+    "chatPerspective": "고종",
+    "chatChrome": "compact"
+  },
+  "characters": {
+    "고종": {
+      "label": "高",
+      "color": "#947e66"
+    },
+    "청나라": {
+      "label": "淸",
+      "color": "#5a718b"
+    }
+  },
+  "scenes": [
+    {
+      "id": "intro-century",
+      "label": "19세기 후반",
+      "kind": "intro",
+      "src": "scenes/01-century.md",
+      "durationMs": 1450,
+      "transition": "fade",
+      "variant": "cinematic"
+    },
+    {
+      "id": "intro-troubles",
+      "label": "골머리 앓던 조선",
+      "kind": "intro",
+      "src": "scenes/02-troubles.md",
+      "durationMs": 1750,
+      "transition": "fade",
+      "variant": "cinematic"
+    },
+    {
+      "id": "japan-notifications",
+      "label": "일본 · 알림 폭주",
+      "kind": "post",
+      "src": "scenes/03-japan-notices.md",
+      "durationMs": 2400,
+      "transition": "fade",
+      "variant": "notice-storm"
+    },
+    {
+      "id": "western-notifications",
+      "label": "서양 열강 · 알림 몽타주",
+      "kind": "post",
+      "src": "scenes/04-west-notices.md",
+      "durationMs": 2450,
+      "transition": "cut",
+      "variant": "notice-inbox"
+    },
+    {
+      "id": "imogunran-context",
+      "label": "1882년 · 임오군란",
+      "kind": "narration",
+      "src": "scenes/05-imogunran.md",
+      "durationMs": 1700,
+      "transition": "fade",
+      "variant": "webtoon"
+    },
+    {
+      "id": "qing-enters",
+      "label": "청나라 입장 · 입력 중",
+      "kind": "chat",
+      "src": "scenes/06-qing-entry.chat",
+      "durationMs": 3600,
+      "transition": "fade",
+      "variant": "kakao",
+      "room": "조선조선"
+    },
+    {
+      "id": "qing-image",
+      "label": "청나라 배송조회 짤 전송",
+      "kind": "chat",
+      "src": "scenes/07-qing-photo.chat",
+      "durationMs": 1850,
+      "transition": "cut",
+      "variant": "kakao",
+      "room": "조선조선"
+    },
+    {
+      "id": "delivery-zoom",
+      "label": "배송조회 확대",
+      "kind": "photo",
+      "src": "scenes/08-delivery-zoom.md",
+      "durationMs": 2300,
+      "transition": "fade",
+      "variant": "default"
+    },
+    {
+      "id": "greetings",
+      "label": "청나라 고객센터 · 고종 저런",
+      "kind": "chat",
+      "src": "scenes/09-customer-service.chat",
+      "durationMs": 3000,
+      "transition": "cut",
+      "variant": "kakao",
+      "room": "조선조선"
+    }
+  ]
+}

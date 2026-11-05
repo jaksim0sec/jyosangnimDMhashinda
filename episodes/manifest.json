@@ -7,6 +7,13 @@
       "description": "1689년 원자 책봉을 둘러싼 조정의 반전",
       "source": "episodes/sukjong-gisa-1689/episode.json",
       "status": "draft"
+    },
+    {
+      "id": "gapsin-1884-ep01",
+      "title": "갑신정변 1화 · 조선의 알림 폭주",
+      "description": "갑신정변 1화 9컷 초반 시퀀스 · 검수중",
+      "source": "episodes/gapsin-1884-ep01/episode.json",
+      "status": "draft"
     }
   ]
 }
