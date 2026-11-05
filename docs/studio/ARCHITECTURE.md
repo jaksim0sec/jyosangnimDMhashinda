@@ -20,7 +20,12 @@ index.html                                  # legacy player / recorder (unchange
 studio.html                                 # new studio UI
 studio/
   studio.css                               # editor and preview styles
-  studio.js                                # workspace, timeline, scene registry
+  app.js                                   # editor / state / recorder
+  renderer.js                              # safe scene markup and chat parsing
+  canvas.js                                # identical preview+video renderer
+  webm.js                                  # WebM duration metadata repair
+  zip.js                                   # reviewed episode bundle export/import
+  variants/                                # code-reviewed special scene UIs
 episodes/
   manifest.json                            # list of published episodes
   <slug>/
@@ -54,7 +59,7 @@ Per-episode exceptions should live in **reviewed code files** under `studio/vari
 
 LocalStorage key **`josa-studio:v1:draft:<slug>`** for each episode. Draft structure:
 ```json
-{"schema":1,"episodeId":"sukjong-gisa-1689","savedAt":"ISO8601","baseVersion":1,"timeline":[{"id":"intro","kind":"intro","src":"scenes/intro.md","durationMs":2400}],"content":{"intro":"# ..."}}
+{"schema":1,"episodeId":"sukjong-gisa-1689","savedAt":"ISO8601","baseVersion":1,"episode":{"id":"sukjong-gisa-1689","scenes":[{"id":"intro","kind":"intro","src":"scenes/intro.md","durationMs":2400}]},"contents":{"intro":"# ..."}}
 ```
 
 Local drafts override GitHub defaults on load. Reset removes only the active episode draft, never any other episode, never the legacy player. The UI must show whether content is a local draft or the published baseline. Export a review JSON, with all edited scenes and timeline, so a GitHub-connected agent can apply changes to the corresponding source files.
@@ -87,3 +92,15 @@ All 56 canonical user-supplied icons from `questYourLife/new` are vendored verba
 - Scene authoring: `:icon(name):` is an optional text token, usable in narrative, chat messages, SNS text and headings. Missing/unknown names are shown literally, never interpolated as HTML.
 - Editor: the collapsible icon gallery reads the manifest, supports name filtering, click-to-insert and name copying. Icons are UI pictograms, not a substitute for historical photographs or 3D artwork.
 - Source provenance and limitations: [icon README](../../studio/icons/README.md). Inline SVG mask IDs are never copied into DOM; external SVG is rendered as a CSS mask to avoid ID collisions and preserve the original files.
+
+## Implemented Studio workflow (2026-11-06)
+
+- **Frame parity:** `studio/canvas.js` owns the **720×1280 preview and MediaRecorder capture**. Intro, chat, post, webtoon narration, photo and outro render through one Canvas painter. Legacy `index.html` is unchanged.
+- **Timing:** ordered per-episode scene durations (milliseconds in JSON, seconds in editor), seek/scrub and fade, progressive chat reveal. The recording ends automatically and passes through WebM Duration metadata repair (`studio/webm.js`).
+- **Media:** multiple image upload, drop/paste, dedicated per-episode IndexedDB, gallery insertion. Chat images use `- [image] 이름 > assets/name.jpg`; other scenes use Markdown-style image references. Media in a review ZIP remains in that episode's `assets` directory.
+- **Portability:** store-only ZIP with per-entry CRC validation, path and total-size checks; export includes `episode.json`, scene files, media, `studio-draft.json`, and review metadata. Import restores a ZIP to the selected episode. Compressed third-party ZIP is not supported.
+- **Exceptions:** trusted modules register a `kind:variant` renderer with `StudioCanvas.register`, and may call `drawDefault`. `studio/variants/sukjong-royal.js` implements the sample `chat:royal-purge` variant. Modules are reviewed scripts included by the app, never JavaScript evaluated from scene text.
+- **Safety/configuration:** safe-area percentages (top/right/bottom) are stored per episode and used during preview+recording. Red guides are overlay-only and not present in recorded pixels. Drafts are isolated by episode ID and don't mutate legacy browser storage.
+- **Publishing:** direct browser→GitHub publishing is deliberately not implemented because secrets do not belong in a static client. Use a reviewed ZIP and GitHub-enabled agent to commit source/assets.
+
+**Verification gates:** syntax/schema/ZIP roundtrip/renderer unit checks and deployment readiness can pass without proving mobile UX or end-to-end browser recording. Mark those separately until tested on device.
