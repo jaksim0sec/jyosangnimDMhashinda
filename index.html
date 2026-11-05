@@ -77,7 +77,7 @@
       <textarea id="editor" class="editor" spellcheck="false" aria-label="시나리오 대본"></textarea>
       <div class="buttonrow" style="margin-top:11px"><button id="validateBtn" class="btn" type="button">✓ 대본 검사</button><button id="sampleBtn" class="btn" type="button">예시 불러오기</button><span style="margin:auto 0 auto auto;color:var(--muted);font-size:11px" id="scriptStats">—</span></div>
       <div id="validation" class="errorbox hidden" role="status"></div>
-      <div class="hint"><strong>기본 문법</strong><br><code>char[</code> 이름$이모지/프로필경로/사진번호$색상; <code>]</code><br><code>send$이름$대사$입력시간$이후대기;</code><br><code>typing$이름$입력시간$멈춘시간;</code> — 입력하다 멈춤<br><code>wait$밀리초;</code><br><code>file$이름$파일명.pdf$크기$입력시간$대기;</code> — 가상 첨부파일<br><code>picture$1;</code> — 1번 사진 전송 (경로도 가능)<br><code>picture$이름$2$입력시간$대기;</code><br><code>system$안내문구$대기;</code> · <code>title$초기방제목;</code><br><code>rename$변경한인물$새방제목$대기시간;</code> — 방 제목 변경 + 자동 시스템 메시지<br>문장에 $ 또는 ;를 쓰려면 <code>\$</code> 또는 <code>\;</code>, 줄바꿈은 <code>\n</code></div>
+      <div class="hint"><strong>기본 문법</strong><br><code>char[</code> 이름$이모지/프로필경로/사진번호$색상; <code>]</code><br><code>send$이름$대사$입력시간$이후대기;</code><br><code>typing$이름$입력시간$멈춘시간;</code> — 입력하다 멈춤<br><code>wait$밀리초;</code><br><code>file$이름$파일명.pdf$크기$입력시간$대기;</code> — 가상 첨부파일<br><code>picture$1;</code> — 1번 사진 전송 (경로도 가능)<br><code>picture$이름$2$입력시간$대기;</code><br><code>system$안내문구$대기;</code> · <code>title$초기방제목;</code><br><code>rename$변경한인물$새방제목$대기시간;</code> — 방 제목 변경 + 자동 시스템 메시지<br>문장에 $ 또는 ;를 쓰려면 <code>\$</code> 또는 <code>\;</code>, 줄바꿈은 <code>\n</code><br>명령 끝의 <code>;</code>는 생략 가능 · 긴 대사는 여러 줄로 작성 가능 · 빠진 인물은 자동 등록</div>
       <div class="asset-title"><div><h2 class="sectiontitle">이미지 연결 <span id="assetCount" class="muted">0개</span></h2><p class="helptext">이미지 업로드 시 <b>1번, 2번</b> 고유 번호 부여 · 브라우저에 저장</p></div><button class="btn" id="assetAddBtn" type="button">+ 이미지 추가</button></div>
       <div id="assetList" class="assets"></div><div id="dropZone" class="drop">이미지를 드래그하거나 여러 장 한번에 업로드</div>
       <p class="helptext">대본에 <code>picture$1;</code> 또는 <code>picture$이성계$2$900$500;</code> 입력. 프로필에도 <code>이성계$1$#6B826F;</code> 사용 가능. 기존 파일명·경로 방식도 유지.</p>
@@ -181,11 +181,64 @@ function nonnegative(value, fallback, label, line){
  if(!Number.isFinite(num) || num<0 || !Number.isInteger(num) || num>300000)throw Error(`${line}행: ${label}은 0~300000 사이의 정수(ms)여야 함`);
  return num;
 }
-function compile(text){
- const chars=new Map(), events=[];let title='단톡방',clock='오늘',inChars=false,lastSender=null;
- const lines=text.replace(/\r/g,'').split('\n');
+// Convert physical lines to logical commands. Missing semicolons and wrapped
+// message text are supported while escaped \; stays part of the text.
+function splitStoryFragments(raw){
+ const parts=[];let start=0,escaped=false;
+ for(let i=0;i<raw.length;i++){
+  const ch=raw[i];
+  if(ch==='\\'&&!escaped){escaped=true;continue}
+  if(ch===';'&&!escaped){parts.push({text:raw.slice(start,i).trim(),closed:true});start=i+1}
+  escaped=false;
+ }
+ const tail=raw.slice(start).trim();
+ if(tail)parts.push({text:tail,closed:false});
+ return parts;
+}
+function normalizeStoryLines(text){
+ const lines=String(text).replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n');
+ const entries=[],isCommand=/^(?:title|clock|rename|wait|typing|send|picture|file|system)(?=\s*\$|\s*$)/;
+ let inChars=false,pending='',startLine=0;
+ function flush(){
+  const value=pending.trim().replace(/\s*\n\s*(?=\$)/g,'');
+  if(value)entries.push({text:value+';',line:startLine});
+  pending='';
+ }
  for(let i=0;i<lines.length;i++){
-  let s=lines[i].trim();const line=i+1;
+  const lineNo=i+1,trimmed=lines[i].trim();
+  if(!trimmed){if(pending)pending+='\n';continue}
+  if(trimmed.startsWith('//'))continue;
+  if(/^char\s*\[$/.test(trimmed)){flush();entries.push({text:'char[',line:lineNo});inChars=true;continue}
+  if(inChars){
+   if(/^\]\s*;?$/.test(trimmed)){entries.push({text:']',line:lineNo});inChars=false;continue}
+   for(const part of splitStoryFragments(trimmed)){
+    if(part.text&&!part.text.startsWith('//'))entries.push({text:part.text+(part.closed?';':''),line:lineNo});
+   }
+   continue;
+  }
+  for(const part of splitStoryFragments(trimmed)){
+   const chunk=part.text;
+   if(!chunk||chunk.startsWith('//'))continue;
+   if(isCommand.test(chunk)){flush();pending=chunk;startLine=lineNo}
+   else if(pending)pending+='\n'+chunk;
+   else{entries.push({text:chunk+(part.closed?';':''),line:lineNo});continue}
+   if(part.closed)flush();
+  }
+ }
+ flush();
+ return entries;
+}
+function compile(text){
+ const chars=new Map(), events=[], inferred=new Set();let title='단톡방',clock='오늘',inChars=false,lastSender=null;
+ const ensureCharacter=name=>{
+  const who=String(name||'').trim();
+  if(!who)throw Error('인물 이름이 비어 있음');
+  if(!chars.has(who)){chars.set(who,{name:who,avatar:who.slice(0,1),color:'#718390'});inferred.add(who)}
+  return who;
+ };
+ const lines=normalizeStoryLines(text);
+ for(let i=0;i<lines.length;i++){
+  let s=lines[i].text.trim();const line=lines[i].line;
   if(!s||s.startsWith('//'))continue;
   if(inChars){
    if(s===']'||s==='];'){inChars=false;continue}
@@ -193,7 +246,8 @@ function compile(text){
    const f=splitFields(s).map(x=>x.trim());const name=f[0];
    if(!name)throw Error(`${line}행: 인물 이름이 없음`);
    if(f.length>3)throw Error(`${line}행: 인물 형식은 이름$프로필$색상;`);
-   if(chars.has(name))throw Error(`${line}행: 중복 인물 '${name}'`);
+   if(chars.has(name)&&!inferred.has(name))throw Error(`${line}행: 중복 인물 '${name}'`);
+   inferred.delete(name);
    const color=f[2]||'#718390';
    if(!/^#[\da-fA-F]{6}$/.test(color))throw Error(`${line}행: 색상은 #RRGGBB 형식이어야 함`);
    chars.set(name,{name,avatar:f[1]||name.slice(0,1),color});continue;
@@ -206,22 +260,22 @@ function compile(text){
   if(op==='rename'){
    if(f.length<3||f.length>4)throw Error(`${line}행: rename$인물이름$새방제목$대기시간; 형식이어야 함`);
    const who=f[1].trim(), newTitle=f[2].trim();
-   if(!chars.has(who))throw Error(`${line}행: 정의되지 않은 인물 '${who}'`);
+   ensureCharacter(who);
    if(!newTitle)throw Error(`${line}행: 새 방 제목이 없음`);
    events.push({kind:'rename',who,title:newTitle,after:nonnegative(f[3],600,'제목 변경 후 대기',line)});continue;
   }
   if(op==='wait'){if(f.length!==2)throw Error(`${line}행: wait$밀리초; 형식이어야 함`);events.push({kind:'wait',duration:nonnegative(f[1],0,'대기 시간',line)});continue}
   if(op==='typing'){
    if(f.length<3||f.length>4)throw Error(`${line}행: typing$이름$입력시간$멈춘시간; 형식이어야 함`);
-   const who=f[1].trim();if(!chars.has(who))throw Error(`${line}행: 정의되지 않은 인물 '${who}'`);
+   const who=f[1].trim();ensureCharacter(who);
    events.push({kind:'typing',who,typing:nonnegative(f[2],0,'입력 시간',line),after:nonnegative(f[3],0,'입력 중단 시간',line)});
    continue;
   }
   if(op==='send'){
    if(f.length<3||f.length>5)throw Error(`${line}행: send$이름$대사$입력시간$대기시간; 형식이어야 함`);
-   const who=f[1].trim();if(!chars.has(who))throw Error(`${line}행: 정의되지 않은 인물 '${who}'`);
-   if(!f[2])throw Error(`${line}행: 대사가 비어 있음`);
-   events.push({kind:'send',who,text:f[2],typing:nonnegative(f[3],DEFAULT_TYPING,'입력 시간',line),after:nonnegative(f[4],DEFAULT_AFTER,'이후 대기 시간',line)});
+   const who=f[1].trim();ensureCharacter(who);
+   if(!f[2]?.trim())throw Error(`${line}행: 대사가 비어 있음`);
+   events.push({kind:'send',who,text:f[2].trim(),typing:nonnegative(f[3],DEFAULT_TYPING,'입력 시간',line),after:nonnegative(f[4],DEFAULT_AFTER,'이후 대기 시간',line)});
    lastSender=who;continue;
   }
   if(op==='picture'){
@@ -267,7 +321,7 @@ function compile(text){
  if(!chars.size)throw Error('char[ ] 안에 최소 한 명을 정의해야 함');
  if(!events.length)throw Error('재생할 명령이 없음');
  const duration=events.reduce((sum,e)=>sum+(e.kind==='wait'?e.duration:(e.kind==='system'||e.kind==='rename')?e.after:e.typing+e.after),0);
- return {title,clock,chars,events,duration};
+ return {title,clock,chars,events,duration,inferred:[...inferred]};
 }
 function formatTime(ms){const s=Math.floor(ms/1000);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
 function report(text,isError=false){feedback.textContent=text;feedback.className='errorbox '+(isError?'error':'ok')}
@@ -280,7 +334,8 @@ function prepare({showSuccess=false}={}){
   liveRoomTitle=data.title;$('chatTitle').textContent=liveRoomTitle;$('chatPeople').textContent=`참여자 ${data.chars.size}명`;$('sceneClock').textContent=data.clock;
   $('scriptStats').textContent=`인물 ${data.chars.size} · 이벤트 ${data.events.length} · ${formatTime(data.duration)}`;
   renderCharacters(data);
-  if(showSuccess)report(`문법 정상 · 인물 ${data.chars.size}명 · 이벤트 ${data.events.length}개`);
+  const note=data.inferred.length?` · 자동 등록: ${data.inferred.join(', ')}`:'';
+  if(showSuccess||note)report(`문법 정상 · 인물 ${data.chars.size}명 · 이벤트 ${data.events.length}개${note}`);
   else hideReport();return data;
  }catch(err){report(err.message,true);return null}
 }
@@ -430,7 +485,7 @@ function updateCharacterAvatar(who,avatar){
  const lines=editor.value.replace(/\r/g,'').split('\n');let inBlock=false,changed=false;
  for(let i=0;i<lines.length;i++){
   const raw=lines[i],trimmed=raw.trim();
-  if(trimmed==='char['){inBlock=true;continue}
+  if(/^char\s*\[$/.test(trimmed)){inBlock=true;continue}
   if(inBlock&&(trimmed===']'||trimmed==='];')){inBlock=false;continue}
   if(!inBlock||!trimmed||trimmed.startsWith('//'))continue;
   const fields=splitFields(trimmed.replace(/;$/,'')).map(x=>x.trim());
@@ -439,7 +494,14 @@ function updateCharacterAvatar(who,avatar){
   lines[i]=prefix+`${escapeStoryField(who)}$${escapeStoryField(avatar)}$${fields[2]||'#718390'};`;
   changed=true;break;
  }
- if(!changed)throw Error(`'${who}' 프로필 수정 위치가 없음`);
+ if(!changed){
+  // A sender omitted from char[] was auto-created; persist their profile
+  // by inserting an explicit character entry when they choose an avatar.
+  const definition=`${escapeStoryField(who)}$${escapeStoryField(avatar)}$#718390;`;
+  const blockStart=lines.findIndex(raw=>/^char\s*\[$/.test(raw.trim()));
+  if(blockStart>=0)lines.splice(blockStart+1,0,definition);
+  else lines.unshift('char[',definition,']');
+ }
  editor.value=lines.join('\n');storeScript();reset();return true;
 }
 let pendingProfileWho=null;
