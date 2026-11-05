@@ -20,7 +20,7 @@
       <select id="episodeSelect"></select>
       <div class="row buttons" style="margin-top:9px"><button id="newEpisodeBtn" class="btn" data-studio-icon="plus" type="button">새 에피소드</button><button id="resetBtn" class="btn" data-studio-icon="refresh" type="button">배포본으로 초기화</button></div>
       <label for="episodeTitle">제목</label><input id="episodeTitle" type="text" maxlength="100">
-      <details class="icon-library" id="safeSettings"><summary><strong>릴스 안전 영역</strong><span class="muted">상단 · 오른쪽 · 하단</span></summary><div class="icon-library-body"><div class="safe-grid"><label>상단 %<input id="safeTop" type="number" min="0" max="30" value="12" step="1"></label><label>오른쪽 %<input id="safeRight" type="number" min="0" max="29" value="17" step="1"></label><label>하단 %<input id="safeBottom" type="number" min="0" max="35" value="21" step="1"></label></div><p class="hint">이 에피소드의 미리보기와 녹화에 동시에 반영됨. 빨간 영역은 가이드에만 표시</p></div></details>
+      <details class="icon-library" id="safeSettings"><summary><strong>릴스 안전 영역</strong><span class="muted">상단 · 오른쪽 · 하단</span></summary><div class="icon-library-body"><div class="safe-grid"><label>상단 %<input id="safeTop" type="number" min="0" max="30" value="12" step="1"></label><label>오른쪽 %<input id="safeRight" type="number" min="0" max="29" value="17" step="1"></label><label>하단 %<input id="safeBottom" type="number" min="0" max="35" value="21" step="1"></label></div><label for="chatChrome">단톡 하단 입력창</label><select id="chatChrome"><option value="compact">릴스용 · 입력창 없음</option><option value="classic">클래식 · 입력창 표시</option></select><p class="hint">왼쪽·오른쪽 말풍선과 인물 프사·스크롤 연출은 그대로 유지함</p><p class="hint">이 에피소드의 미리보기와 녹화에 동시에 반영됨. 빨간 영역은 가이드에만 표시</p></div></details>
       <div class="row" style="margin-top:19px"><h2 style="margin:0;flex:1">타임라인</h2><select id="newKind" aria-label="추가할 장면 유형" style="width:130px"><option value="chat">단톡</option><option value="narration">나레이션</option><option value="post">SNS 게시물</option><option value="intro">인트로</option><option value="photo">사진</option><option value="outro">결말</option></select><button id="addSceneBtn" class="btn" data-studio-icon="plus" type="button" aria-label="장면 추가">추가</button></div>
       <div id="timeline" class="timeline" aria-label="장면 순서"></div>
       <div class="workspace-tip">
@@ -44,7 +44,10 @@
         <div><label for="sceneVariant">스타일 · 커스텀 변형</label><input id="sceneVariant" type="text" list="variantList" placeholder="기본 / kakao / royal-purge" maxlength="64"><datalist id="variantList"><option value="kakao"><option value="webtoon"><option value="social"><option value="dark"><option value="royal-purge"></datalist></div>
         <div><label for="transition">전환</label><select id="transition"><option value="cut">바로 전환</option><option value="fade">페이드</option></select></div>
       </div>
-      <label for="sceneRoom">채팅방 / 추가 정보</label><input id="sceneRoom" type="text" placeholder="단톡 장면일 때 채팅방 이름">
+      <div class="field-grid">
+        <div><label for="sceneRoom">채팅방 이름</label><input id="sceneRoom" type="text" placeholder="조선 국정운영위원회"></div>
+        <div><label for="scenePerspective">내 말풍선 · 인물</label><input id="scenePerspective" type="text" placeholder="예: 숙종" maxlength="64"></div>
+      </div>
       <label for="sceneContent">장면 원고 (Markdown / 채팅 형식)</label>
       <textarea id="sceneContent" class="editor-area" spellcheck="false" placeholder="# 1689년, 조선"></textarea>
       <details class="icon-library" id="assetsLibrary">
