@@ -6,7 +6,7 @@
  const $=id=>document.getElementById(id),DRAFT='josa-studio:v1:draft:',LOCAL_INDEX='josa-studio:v1:local-episodes';
  const KINDS=['intro','chat','post','narration','photo','outro'];
  const KIND_NAME={intro:'인트로',chat:'단톡',post:'SNS 게시물',narration:'나레이션',photo:'사진',outro:'결말'};
- const KIND_ICON={intro:'▶',chat:'◉',post:'＠',narration:'▤',photo:'▣',outro:'■'};
+ const KIND_ICON={intro:'play',chat:'chat',post:'share',narration:'book',photo:'grid',outro:'flag'};
  const DEFAULT_TEXT={
   intro:'# 새로운 이야기\n\n사건이 시작됩니다.',
   chat:'- 숙종: 잠깐만요\n- 신하: ?',
@@ -153,7 +153,8 @@
   const list=state.episode?.scenes||[];
   list.forEach((scene,i)=>{
    const row=document.createElement('div');row.className='scene-item'+(state.activeId===scene.id?' selected':'');
-   const mark=document.createElement('span');mark.className='scene-icon';mark.textContent=KIND_ICON[scene.kind]||'□';
+   const mark=document.createElement('span');mark.className='scene-icon';
+   const iconName=KIND_ICON[scene.kind];if(window.StudioIcons?.has(iconName))mark.append(window.StudioIcons.icon(iconName,{size:20}));else mark.textContent='□';
    const button=document.createElement('button');button.type='button';button.className='scene-name';button.style.cssText='border:0;background:none;text-align:left;cursor:pointer';
    button.append(Object.assign(document.createElement('strong'),{textContent:scene.id}),Object.assign(document.createElement('small'),{textContent:KIND_NAME[scene.kind]+' · '+(scene.durationMs/1000).toFixed(1)+'초'}));
    button.addEventListener('click',()=>selectScene(scene.id));
@@ -338,6 +339,15 @@
    state.activeId=state.episode.scenes[0]?.id||null;renderTimeline();editScene(state.activeId);selectScene(state.activeId);
   }catch(e){error('가져오기 실패: '+e.message)}
  }
+ function insertIconToken(name){
+  const scene=activeScene();
+  if(!scene){error('장면을 선택한 다음 아이콘을 삽입해 주세요');return}
+  const area=$('sceneContent'),token=window.StudioIcons.token(name);
+  const start=area.selectionStart??area.value.length,end=area.selectionEnd??start;
+  area.setRangeText(token,start,end,'end');
+  area.dispatchEvent(new Event('input',{bubbles:true}));
+  area.focus();
+ }
  function installEvents(){
   $('episodeSelect').addEventListener('change',e=>{if(state.unsaved)immediateSave();clearTimeout(state.saveTimer);switchEpisode(e.target.value)});
   $('newEpisodeBtn').addEventListener('click',newEpisode);
@@ -361,7 +371,11 @@
   addEventListener('beforeunload',()=>{if(state.episode&&state.unsaved)immediateSave()});
  }
  async function init(){
-  installEvents();state.db=await loadDb();state.localIndex=localEpisodes();
+  installEvents();
+  await window.StudioIcons.ready;
+  window.StudioIcons.decorate(document);
+  window.StudioIcons.gallery($('iconGrid'),$('iconSearch'),insertIconToken);
+  state.db=await loadDb();state.localIndex=localEpisodes();
   try{
    const manifest=await getJson(pathFor('episodes/manifest.json',document.baseURI));
    state.manifest=manifest.episodes||[];
