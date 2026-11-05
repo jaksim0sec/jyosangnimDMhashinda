@@ -20,6 +20,7 @@
       <select id="episodeSelect"></select>
       <div class="row buttons" style="margin-top:9px"><button id="newEpisodeBtn" class="btn" data-studio-icon="plus" type="button">새 에피소드</button><button id="resetBtn" class="btn" data-studio-icon="refresh" type="button">배포본으로 초기화</button></div>
       <label for="episodeTitle">제목</label><input id="episodeTitle" type="text" maxlength="100">
+      <details class="icon-library" id="safeSettings"><summary><strong>릴스 안전 영역</strong><span class="muted">상단 · 오른쪽 · 하단</span></summary><div class="icon-library-body"><div class="safe-grid"><label>상단 %<input id="safeTop" type="number" min="0" max="30" value="12" step="1"></label><label>오른쪽 %<input id="safeRight" type="number" min="0" max="29" value="17" step="1"></label><label>하단 %<input id="safeBottom" type="number" min="0" max="35" value="21" step="1"></label></div><p class="hint">이 에피소드의 미리보기와 녹화에 동시에 반영됨. 빨간 영역은 가이드에만 표시</p></div></details>
       <div class="row" style="margin-top:19px"><h2 style="margin:0;flex:1">타임라인</h2><select id="newKind" aria-label="추가할 장면 유형" style="width:130px"><option value="chat">단톡</option><option value="narration">나레이션</option><option value="post">SNS 게시물</option><option value="intro">인트로</option><option value="photo">사진</option><option value="outro">결말</option></select><button id="addSceneBtn" class="btn" data-studio-icon="plus" type="button" aria-label="장면 추가">추가</button></div>
       <div id="timeline" class="timeline" aria-label="장면 순서"></div>
       <div class="workspace-tip">
