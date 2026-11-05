@@ -161,6 +161,7 @@
   guide.style.setProperty('--guide-top',values.top+'%');
   guide.style.setProperty('--guide-right',values.right+'%');
   guide.style.setProperty('--guide-bottom',values.bottom+'%');
+  $('chatChrome').value=state.episode?.settings?.chatChrome==='classic'?'classic':'compact';
  }
  function updateSafeSetting(name,value){
   if(!state.episode||video.recording)return;
@@ -239,13 +240,14 @@
  }
  function editScene(id){
   const scene=findScene(id),disabled=!scene;
-  for(const field of ['sceneKind','duration','sceneVariant','transition','sceneRoom','sceneContent','uploadImageBtn'])$(field).disabled=disabled;
+  for(const field of ['sceneKind','duration','sceneVariant','transition','sceneRoom','scenePerspective','sceneContent','uploadImageBtn'])$(field).disabled=disabled;
   $('sceneId').value=scene?.id||'';$('sceneContent').value=scene?state.contents[scene.id]||'':'';
   $('editingHeading').textContent=scene?KIND_NAME[scene.kind]+' 편집':'장면을 선택하세요';
   if(scene){
    $('sceneKind').value=scene.kind;$('duration').value=+(scene.durationMs/1000).toFixed(1);
    $('sceneVariant').value=scene.variant||'';
    $('transition').value=scene.transition||'cut';$('sceneRoom').value=scene.room||'';
+   $('scenePerspective').value=scene.perspective||state.episode.settings?.chatPerspective||'숙종';
   }
  }
  function moveScene(id,delta){
@@ -287,6 +289,8 @@
    scene.variant=value;
   }else if(field==='room'){
    scene.room=value.slice(0,100);
+  }else if(field==='perspective'){
+   scene.perspective=value.trim().slice(0,64);
   }
   scheduleSave();renderTimeline();updateStage(scene);
  }
@@ -333,7 +337,7 @@
   $('playBtn').textContent='Ⅱ 정지';player.raf=requestAnimationFrame(frame);
  }
  function recordingUI(active){
-  for(const id of ['episodeSelect','newEpisodeBtn','resetBtn','addSceneBtn','newKind','episodeTitle','sceneKind','duration','sceneVariant','transition','sceneRoom','sceneContent','uploadImageBtn','saveBtn','importBtn','importZipBtn','exportBtn','playBtn','safeTop','safeRight','safeBottom']){
+  for(const id of ['episodeSelect','newEpisodeBtn','resetBtn','addSceneBtn','newKind','episodeTitle','sceneKind','duration','sceneVariant','transition','sceneRoom','scenePerspective','sceneContent','chatChrome','uploadImageBtn','saveBtn','importBtn','importZipBtn','exportBtn','playBtn','safeTop','safeRight','safeBottom']){
    const elem=$(id);if(elem)elem.disabled=active;
   }
   $('recordBtn').disabled=false;
@@ -588,6 +592,8 @@
   $('sceneVariant').addEventListener('change',e=>changeField('variant',e.target.value));
   $('transition').addEventListener('change',e=>changeField('transition',e.target.value));
   $('sceneRoom').addEventListener('input',e=>changeField('room',e.target.value));
+  $('scenePerspective').addEventListener('input',e=>changeField('perspective',e.target.value));
+  $('chatChrome').addEventListener('change',e=>{if(!state.episode||video.recording)return;state.episode.settings??={};state.episode.settings.chatChrome=e.target.value==='classic'?'classic':'compact';scheduleSave();drawFrame();});
   $('sceneContent').addEventListener('input',e=>{if(!activeScene())return;state.contents[state.activeId]=e.target.value;scheduleSave();updateStage(activeScene());preloadScenes().catch(err=>error(err.message))});
   $('sceneContent').addEventListener('paste',async e=>{
    const file=[...(e.clipboardData?.items||[])].find(item=>item.kind==='file'&&item.type.startsWith('image/'))?.getAsFile();
