@@ -33,7 +33,7 @@
   if(image){card.classList.add('with-image');card.prepend(imageElement(image,ctx,'scene-background-image'))}
   if(scene.kind==='narration'){
    const box=el('div','webtoon-narration');
-   while(card.firstChild&&!card.firstChild.classList?.contains('scene-background-image'))box.append(card.firstChild);
+   for(const node of [...card.children])if(!node.classList.contains('scene-background-image'))box.append(node);
    if(box.childNodes.length)card.append(box);
   }
   return card;
