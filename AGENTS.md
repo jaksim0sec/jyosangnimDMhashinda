@@ -46,3 +46,12 @@ This repository is a **browser-based episode editor for historical parody Shorts
 - Source: `jaksim0sec/questYourLife` branch `new`, `docs/design/seed/assets/icons/v0.14/`. Exactly 56 user-approved Soft SVG assets, mirrored under `studio/icons/svg/` without shape edits.
 - Manifest: `studio/icons/manifest.json`. UI component: `studio/icons.js`; gallery: `studio.html`; scene syntax `:icon(name):`; renderer: `studio/renderer.js`.
 - Prefer this icon family over emoji, arbitrary Unicode glyphs or new SVG drawings in Studio editing controls. Never synthesize Fill versions except the five real files. Do not alter the legacy player just to propagate icon styling.
+
+## Studio video and variants
+- `studio/canvas.js` now renders both preview and 720×1280 video. `studio/webm.js` fixes WebM Duration. Do not introduce a second video rendering path.
+- `studio/renderer.js` parses chat content; images inside chat are `- [image] 인물 > assets/photo.jpg` and use episode-local media.
+- `studio/zip.js` exports and imports **store-only** review archives with CRC validation; normal compressed ZIPs are intentionally unsupported.
+- User media must remain per-episode in `josa-studio-assets-v1`. Never overwrite identical uploaded names silently or delete other episodes' media.
+- Add special UI only as a reviewed module under `studio/variants/`; register `kind:variant` using `StudioCanvas.register`. Only explicitly listed scripts should load. Never evaluate JS from Markdown/episode JSON.
+- The Studio recorder uses browser MediaRecorder (WebM/no audio) and does not auto-publish to GitHub. Preserve legacy `index.html` and its storage.
+- Distinguish syntax and in-memory render validation from actual browser/mobile record/playback tests.
