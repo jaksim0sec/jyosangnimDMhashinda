@@ -64,10 +64,11 @@
     continue;
    }
    const body=trimmed.slice(2).trim();
-   const direct=body.match(/^\[(system|kick|invite|share|image)\]\s*(.*)$/);
+   const direct=body.match(/^\[(system|kick|invite|share|image|typing)\]\s*(.*)$/);
    if(direct){
     const type=direct[1],payload=direct[2];
     if(type==='system')entries.push({type:'system',text:payload});
+    else if(type==='typing')entries.push({type:'typing',who:payload.trim()||'알 수 없음'});
     else if(type==='image'){
      const match=payload.match(/^(.+?)\s*>\s*(.+)$/);
      if(match)entries.push({type:'image',who:match[1].trim(),path:match[2].trim()});
@@ -96,6 +97,12 @@
   for(let i=0;i<messages.length;i++){
    const m=messages[i],delay=Math.round(200+i*Math.min(360,Math.max(85,(scene.durationMs-300)/Math.max(1,messages.length))));
    if(m.type==='system'){const notice=rich('div','studio-system',m.text);notice.style.animationDelay=delay+'ms';chat.append(notice);continue}
+   if(m.type==='typing'){
+    const row=el('div','studio-chat-row studio-typing-row');row.style.animationDelay=delay+'ms';
+    row.append(el('div','studio-chat-avatar',m.who.slice(0,1)));
+    const container=el('div','studio-chat-message');container.append(el('div','studio-chat-author',m.who+' · 입력 중…'));
+    container.append(el('div','studio-chat-bubble studio-typing-dots','●  ●  ●'));row.append(container);chat.append(row);continue;
+   }
    const row=el('div','studio-chat-row');row.style.animationDelay=delay+'ms';
    row.append(el('div','studio-chat-avatar',m.who.slice(0,1)));
    const content=el('div','studio-chat-message');content.append(el('div','studio-chat-author',m.who));
