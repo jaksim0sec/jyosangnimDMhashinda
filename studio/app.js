@@ -202,6 +202,7 @@
   const prior=list.slice(0,player.index).reduce((sum,scene)=>sum+scene.durationMs,0);
   const elapsed=Math.min(total,prior+player.elapsed);
   $('progressFill').style.width=(100*elapsed/total).toFixed(2)+'%';
+  $('seek').value=String(Math.round(elapsed/total*1000));
   $('previewTime').textContent=fmt(elapsed)+' / '+fmt(total);
  }
  function updateStage(scene){
@@ -225,7 +226,7 @@
   $('sceneId').value=scene?.id||'';$('sceneContent').value=scene?state.contents[scene.id]||'':'';
   $('editingHeading').textContent=scene?KIND_NAME[scene.kind]+' 편집':'장면을 선택하세요';
   if(scene){
-   $('sceneKind').value=scene.kind;$('duration').value=scene.durationMs;
+   $('sceneKind').value=scene.kind;$('duration').value=+(scene.durationMs/1000).toFixed(1);
    $('sceneVariant').value=scene.variant&&[...$('sceneVariant').options].some(o=>o.value===scene.variant)?scene.variant:'';
    $('transition').value=scene.transition||'cut';$('sceneRoom').value=scene.room||'';
   }
@@ -260,7 +261,7 @@
    scene.kind=value;
    scene.variant={chat:'kakao',narration:'webtoon',post:'social',intro:'dark',outro:'dark'}[value]||'';
   }else if(field==='durationMs'){
-   const v=Math.round(Number(value));if(!Number.isFinite(v))return;
+   const v=Math.round(Number(value)*1000);if(!Number.isFinite(v))return;
    scene.durationMs=Math.max(200,Math.min(60000,v));
   }else if(field==='transition'){
    scene.transition=value==='fade'?'fade':'cut';
@@ -288,6 +289,21 @@
   }
   drawFrame(false);setProgress();player.raf=requestAnimationFrame(frame);
  }
+ function seekTime(fraction){
+  if(!state.episode?.scenes.length||video.recording||video.preparing)return;
+  stopPlayer();
+  const scenes=state.episode.scenes,total=totalDuration(),target=clampSeek(Number(fraction))*total;
+  let sum=0,index=scenes.length-1;
+  for(let i=0;i<scenes.length;i++){
+   if(target<sum+scenes[i].durationMs){index=i;break}
+   sum+=scenes[i].durationMs;
+  }
+  const scene=scenes[index];
+  player.index=index;player.elapsed=Math.max(0,Math.min(scene.durationMs,target-sum));
+  state.activeId=scene.id;renderTimeline();editScene(scene.id);updateStage(scene);
+  drawFrame(false);setProgress();
+ }
+ function clampSeek(n){return Math.max(0,Math.min(1,Number.isFinite(n)?n:0))}
  function togglePlayback(){
   if(video.recording||video.preparing)return;
   const scenes=state.episode?.scenes||[];
@@ -555,14 +571,25 @@
   $('transition').addEventListener('change',e=>changeField('transition',e.target.value));
   $('sceneRoom').addEventListener('input',e=>changeField('room',e.target.value));
   $('sceneContent').addEventListener('input',e=>{if(!activeScene())return;state.contents[state.activeId]=e.target.value;scheduleSave();updateStage(activeScene());preloadScenes().catch(err=>error(err.message))});
+  $('sceneContent').addEventListener('paste',async e=>{
+   const file=[...(e.clipboardData?.items||[])].find(item=>item.kind==='file'&&item.type.startsWith('image/'))?.getAsFile();
+   if(!file||video.recording)return;e.preventDefault();
+   try{await uploadImage(file)}catch(err){error('붙여넣기 실패: '+err.message)}
+  });
   $('saveBtn').addEventListener('click',immediateSave);
   $('playBtn').addEventListener('click',togglePlayback);
+  $('seek').addEventListener('input',e=>seekTime(Number(e.target.value)/1000));
   $('recordBtn').addEventListener('click',recordClick);
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&video.recording){error('화면이 숨겨져 녹화를 종료함 · 저장 파일 확인 필요');stopRecording(true)}});
   $('guideToggle').addEventListener('change',e=>$('guides').classList.toggle('hidden',!e.target.checked));
   $('exportBtn').addEventListener('click',exportReview);
   $('uploadImageBtn').addEventListener('click',()=>$('imageFile').click());
-  $('imageFile').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;try{await uploadImage(f)}catch(err){error(err.message)}});
+  $('imageFile').addEventListener('change',async e=>{const selected=[...(e.target.files||[])];e.target.value='';for(const f of selected){try{await uploadImage(f)}catch(err){error(f.name+': '+err.message)}}});
+  for(const zone of [$('stage'),$('mediaGrid')]){
+   zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drop-active')});
+   zone.addEventListener('dragleave',()=>zone.classList.remove('drop-active'));
+   zone.addEventListener('drop',async e=>{e.preventDefault();zone.classList.remove('drop-active');if(video.recording)return;for(const f of [...(e.dataTransfer?.files||[])]){try{await uploadImage(f)}catch(err){error(f.name+': '+err.message)}}});
+  }
   $('importBtn').addEventListener('click',()=>$('importFile').click());
   $('importFile').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';await importReview(f)});
   $('importZipBtn').addEventListener('click',()=>$('importZipFile').click());
