@@ -64,10 +64,14 @@
     continue;
    }
    const body=trimmed.slice(2).trim();
-   const direct=body.match(/^\[(system|kick|invite|share)\]\s*(.*)$/);
+   const direct=body.match(/^\[(system|kick|invite|share|image)\]\s*(.*)$/);
    if(direct){
     const type=direct[1],payload=direct[2];
     if(type==='system')entries.push({type:'system',text:payload});
+    else if(type==='image'){
+     const match=payload.match(/^(.+?)\s*>\s*(.+)$/);
+     if(match)entries.push({type:'image',who:match[1].trim(),path:match[2].trim()});
+    }
     else if(type==='share'){
      const match=payload.match(/^(.+?)\s*>\s*(.+)$/);
      if(match)entries.push({type:'share',who:match[1].trim(),target:match[2].trim()});
@@ -95,7 +99,11 @@
    const row=el('div','studio-chat-row');row.style.animationDelay=delay+'ms';
    row.append(el('div','studio-chat-avatar',m.who.slice(0,1)));
    const content=el('div','studio-chat-message');content.append(el('div','studio-chat-author',m.who));
-   if(m.type==='share'){
+   if(m.type==='image'){
+    const photo=el('div','studio-chat-photo');const img=el('img');img.alt=m.who+'의 사진';img.src=ctx.resolveAsset(m.path)||'';
+    img.onerror=()=>{img.replaceWith(el('div','scene-image-missing','사진 미연결: '+m.path))};
+    photo.append(img);content.append(photo);
+   }else if(m.type==='share'){
     const reference=ctx.getSceneContent(m.target);
     const data=headingAndText(reference||'');
     const share=el('div','studio-shared-post');
