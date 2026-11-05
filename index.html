@@ -66,7 +66,7 @@
       <textarea id="editor" class="editor" spellcheck="false" aria-label="시나리오 대본"></textarea>
       <div class="buttonrow" style="margin-top:11px"><button id="validateBtn" class="btn" type="button">✓ 대본 검사</button><button id="sampleBtn" class="btn" type="button">예시 불러오기</button><span style="margin:auto 0 auto auto;color:var(--muted);font-size:11px" id="scriptStats">—</span></div>
       <div id="validation" class="errorbox hidden" role="status"></div>
-      <div class="hint"><strong>기본 문법</strong><br><code>char[</code> 이름$이모지/프로필경로/사진번호$색상; <code>]</code><br><code>send$이름$대사$입력시간$이후대기;</code><br><code>typing$이름$입력시간$멈춘시간;</code> — 입력하다 멈춤<br><code>wait$밀리초;</code><br><code>file$이름$파일명.pdf$크기$입력시간$대기;</code> — 가상 첨부파일<br><code>picture$1;</code> — 1번 사진 전송 (경로도 가능)<br><code>picture$이름$2$입력시간$대기;</code><br><code>system$안내문구$대기;</code> · <code>title$방제목;</code><br>문장에 $ 또는 ;를 쓰려면 <code>\$</code> 또는 <code>\;</code>, 줄바꿈은 <code>\n</code></div>
+      <div class="hint"><strong>기본 문법</strong><br><code>char[</code> 이름$이모지/프로필경로/사진번호$색상; <code>]</code><br><code>send$이름$대사$입력시간$이후대기;</code><br><code>typing$이름$입력시간$멈춘시간;</code> — 입력하다 멈춤<br><code>wait$밀리초;</code><br><code>file$이름$파일명.pdf$크기$입력시간$대기;</code> — 가상 첨부파일<br><code>picture$1;</code> — 1번 사진 전송 (경로도 가능)<br><code>picture$이름$2$입력시간$대기;</code><br><code>system$안내문구$대기;</code> · <code>title$초기방제목;</code><br><code>rename$변경한인물$새방제목$대기시간;</code> — 방 제목 변경 + 자동 시스템 메시지<br>문장에 $ 또는 ;를 쓰려면 <code>\$</code> 또는 <code>\;</code>, 줄바꿈은 <code>\n</code></div>
       <div class="asset-title"><div><h2 class="sectiontitle">이미지 연결 <span id="assetCount" class="muted">0개</span></h2><p class="helptext">이미지 업로드 시 <b>1번, 2번</b> 고유 번호 부여 · 브라우저에 저장</p></div><button class="btn" id="assetAddBtn" type="button">+ 이미지 추가</button></div>
       <div id="assetList" class="assets"></div><div id="dropZone" class="drop">이미지를 드래그하거나 여러 장 한번에 업로드</div>
       <p class="helptext">대본에 <code>picture$1;</code> 또는 <code>picture$이성계$2$900$500;</code> 입력. 프로필에도 <code>이성계$1$#6B826F;</code> 사용 가능. 기존 파일명·경로 방식도 유지.</p>
@@ -122,6 +122,7 @@ typing$이성계$1650$900;
 send$이성계$ㅈ까 돌아갈 거임 ㅂㅂ$1800$200;
 picture$이성계$1$1250$900;
 send$조민수$저도 갑니다$900$550;
+rename$이성계$개경행 급행열차$900;
 send$최영$아니 왜 개경으로 오는데$1250$650;
 send$우왕$야$300$200;
 send$우왕$야$300$200;
@@ -130,6 +131,7 @@ send$우왕$읽씹하지 마$1000$800;
 system$우왕님의 국왕 권한이 해제되었습니다$1300;`;
 const $=id=>document.getElementById(id);
 const editor=$('editor'), feedback=$('validation'), messages=$('messages'), typingHost=$('typingHost'), scroll=$('chatScroll');
+let liveRoomTitle='단톡방';
 let compiled=null, playGeneration=0, isRunning=false, isPaused=true, currentMs=0, totalMs=0, speed=1;
 const assets=new Map(); // key: original filename; value: {id, url, blob}
 let nextAssetId=1;
@@ -177,6 +179,13 @@ function compile(text){
   const f=splitFields(s.slice(0,-1));const op=f[0].trim();
   if(op==='title'){if(!f[1])throw Error(`${line}행: 방 제목이 없음`);title=f.slice(1).join('$');continue}
   if(op==='clock'){clock=f.slice(1).join('$')||'오늘';continue}
+  if(op==='rename'){
+   if(f.length<3||f.length>4)throw Error(`${line}행: rename$인물이름$새방제목$대기시간; 형식이어야 함`);
+   const who=f[1].trim(), newTitle=f[2].trim();
+   if(!chars.has(who))throw Error(`${line}행: 정의되지 않은 인물 '${who}'`);
+   if(!newTitle)throw Error(`${line}행: 새 방 제목이 없음`);
+   events.push({kind:'rename',who,title:newTitle,after:nonnegative(f[3],600,'제목 변경 후 대기',line)});continue;
+  }
   if(op==='wait'){if(f.length!==2)throw Error(`${line}행: wait$밀리초; 형식이어야 함`);events.push({kind:'wait',duration:nonnegative(f[1],0,'대기 시간',line)});continue}
   if(op==='typing'){
    if(f.length<3||f.length>4)throw Error(`${line}행: typing$이름$입력시간$멈춘시간; 형식이어야 함`);
@@ -233,7 +242,7 @@ function compile(text){
  if(inChars)throw Error('char[ 블록을 ]로 닫아야 함');
  if(!chars.size)throw Error('char[ ] 안에 최소 한 명을 정의해야 함');
  if(!events.length)throw Error('재생할 명령이 없음');
- const duration=events.reduce((sum,e)=>sum+(e.kind==='wait'?e.duration:e.kind==='system'?e.after:e.typing+e.after),0);
+ const duration=events.reduce((sum,e)=>sum+(e.kind==='wait'?e.duration:(e.kind==='system'||e.kind==='rename')?e.after:e.typing+e.after),0);
  return {title,clock,chars,events,duration};
 }
 function formatTime(ms){const s=Math.floor(ms/1000);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
@@ -244,7 +253,7 @@ function prepare({showSuccess=false}={}){
  try{
   const data=compile(editor.value);const prev=compiled;compiled=data;totalMs=data.duration;
   syncPerspective(data);
-  $('chatTitle').textContent=data.title;$('chatPeople').textContent=`참여자 ${data.chars.size}명`;$('sceneClock').textContent=data.clock;
+  liveRoomTitle=data.title;$('chatTitle').textContent=liveRoomTitle;$('chatPeople').textContent=`참여자 ${data.chars.size}명`;$('sceneClock').textContent=data.clock;
   $('scriptStats').textContent=`인물 ${data.chars.size} · 이벤트 ${data.events.length} · ${formatTime(data.duration)}`;
   renderCharacters(data);
   if(showSuccess)report(`문법 정상 · 인물 ${data.chars.size}명 · 이벤트 ${data.events.length}개`);
@@ -298,7 +307,7 @@ function showNotice(text){recordVisualMessages.push({kind:'system',text});messag
 function updateTimeline(){const frac=totalMs?Math.min(1,currentMs/totalMs):0;$('timelineFill').style.width=(frac*100).toFixed(2)+'%';$('timeLabel').textContent=`${formatTime(currentMs)} / ${formatTime(totalMs)}`}
 function reset({recompile=true}={}){
  playGeneration++;isRunning=false;isPaused=true;currentMs=0;recordVisualMessages.length=0;hideTyping();messages.replaceChildren();
- if(recompile)prepare();$('playBtn').textContent='▶ 재생';$('playState').textContent='재생 준비';$('phone').classList.add('paused');updateTimeline();scrollBottom();
+ if(recompile)prepare();liveRoomTitle=compiled?.title||'단톡방';$('chatTitle').textContent=liveRoomTitle;$('playBtn').textContent='▶ 재생';$('playState').textContent='재생 준비';$('phone').classList.add('paused');updateTimeline();scrollBottom();
 }
 async function sleepScaled(ms,ticket){
  let consumed=0,previous=null;
@@ -317,6 +326,11 @@ async function loop(ticket,data){
    if(ticket!==playGeneration)return;
    if(e.kind==='wait'){if(!await sleepScaled(e.duration,ticket))return;continue}
    if(e.kind==='system'){showNotice(e.text);if(!await sleepScaled(e.after,ticket))return;continue}
+   if(e.kind==='rename'){
+    liveRoomTitle=e.title;$('chatTitle').textContent=liveRoomTitle;
+    showNotice(`${e.who}님이 채팅방 이름을 ‘${e.title}’로 변경했습니다`);
+    if(!await sleepScaled(e.after,ticket))return;continue;
+   }
    // Bare typing events show the indicator, cancel it, then keep it hidden for the pause.
    if(e.kind==='typing'){
     if(e.typing>0)showTyping(e.who);else hideTyping();
@@ -544,7 +558,7 @@ function drawRecordCanvas(){
  c.fillStyle='rgba(50,70,90,.1)';c.fillRect(0,81,360,1);
  canvasText(c,'‹',15,62,'24px sans-serif','#26313b');
  c.font='800 14px "Noto Sans KR",sans-serif';
- canvasText(c,elide(c,compiled.title,258),46,50,'800 14px "Noto Sans KR",sans-serif','#17212b');
+ canvasText(c,elide(c,liveRoomTitle,258),46,50,'800 14px "Noto Sans KR",sans-serif','#17212b');
  canvasText(c,`참여자 ${compiled.chars.size}명`,46,66,'10px "Noto Sans KR",sans-serif','#687784');
  canvasText(c,'☰',340,57,'20px sans-serif','#344451','right');
  // Chat scroll surface: crop old items at top, anchored near bottom if needed.
