@@ -224,12 +224,14 @@
   $('previewTime').textContent=fmt(elapsed)+' / '+fmt(total);
  }
  function updateStage(scene){
-  const host=$('sceneContainer');host.replaceChildren();host.className='scene';
-  if(!scene){host.append(document.createTextNode('장면을 선택해 주세요'));const ctx=$('videoCanvas').getContext('2d');ctx.clearRect(0,0,720,1280);setProgress();return}
-  const context={episode:state.episode,resolveAsset,getSceneContent:id=>state.contents[id]||''};
-  try{host.append(window.StudioRenderers.render(scene,state.contents[scene.id]||'',context))}
-  catch(e){error('미리보기 오류: '+e.message)}
-  if(scene.transition==='fade')host.classList.add('is-fading');
+  // Only the real video Canvas is shown. A second hidden DOM render was
+  // consuming work and could never match the captured animation.
+  if(!scene){
+   const canvas=$('videoCanvas'),ctx=canvas.getContext('2d');
+   ctx.setTransform(1,0,0,1,0,0);
+   ctx.clearRect(0,0,canvas.width,canvas.height);
+   setProgress();return;
+  }
   drawFrame();setProgress();
  }
  function selectScene(id,fromPlayer=false){
