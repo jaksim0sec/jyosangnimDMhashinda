@@ -511,6 +511,38 @@
   area.dispatchEvent(new Event('input',{bubbles:true}));
   area.focus();
  }
+ async function importZip(file){
+  if(!file||video.recording||video.preparing)return;
+  try{
+   const entries=await window.StudioZip.read(file);
+   const draftFile=entries.find(x=>x.path==='studio-draft.json');
+   if(!draftFile)throw Error('Studio 검수 ZIP 안에 studio-draft.json이 없음');
+   const draft=JSON.parse(await draftFile.blob.text());
+   if(!draft.episode||!draft.contents||draft.episodeId!==state.id||draft.episode.id!==state.id)throw Error('현재 에피소드의 검수 ZIP이 아님');
+   if(!Array.isArray(draft.episode.scenes)||draft.episode.scenes.length>120)throw Error('장면 수가 유효하지 않음');
+   const restoredEpisode=clone(draft.episode),restoredContent=clone(draft.contents);
+   normalizeScenes(restoredEpisode);
+   if(Object.values(restoredContent).some(t=>typeof t!=='string'||t.length>100000))throw Error('장면 원고가 유효하지 않음');
+   const prefix='episodes/'+state.id+'/assets/';
+   const images=[];
+   const extensionMime={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',avif:'image/avif',svg:'image/svg+xml'};
+   for(const item of entries)if(item.path.startsWith(prefix)){
+    const name=item.path.slice(prefix.length),ext=name.split('.').pop().toLowerCase();
+    if(name.includes('/')||!name||!extensionMime[ext]||item.size>25*1024*1024)throw Error('지원하지 않는 이미지 파일: '+name);
+    images.push({path:'assets/'+name,blob:new Blob([item.blob],{type:extensionMime[ext]})});
+   }
+   if(!confirm('검수 ZIP을 불러오면 이 에피소드의 현재 초안이 교체됩니다. 계속할까요?'))return;
+   stopPlayer();
+   await storeAssetBatch(state.id,images);
+   state.episode=restoredEpisode;state.contents=restoredContent;
+   $('episodeTitle').value=state.episode.title;
+   state.activeId=state.episode.scenes[0]?.id||null;
+   if(!immediateSave())throw Error('로컬 초안 저장 공간 부족');
+   await loadAssets(state.id);await preloadScenes();
+   player.index=0;player.elapsed=0;renderTimeline();editScene(state.activeId);updateStage(activeScene());
+   setStatus('검수 ZIP 가져오기 완료 · 에피소드별 로컬 저장',true);error('');
+  }catch(err){error('검수 ZIP 가져오기 실패: '+err.message)}
+ }
  function installEvents(){
   $('episodeSelect').addEventListener('change',e=>{if(state.unsaved)immediateSave();clearTimeout(state.saveTimer);switchEpisode(e.target.value)});
   $('newEpisodeBtn').addEventListener('click',newEpisode);
@@ -533,6 +565,8 @@
   $('imageFile').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;try{await uploadImage(f)}catch(err){error(err.message)}});
   $('importBtn').addEventListener('click',()=>$('importFile').click());
   $('importFile').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';await importReview(f)});
+  $('importZipBtn').addEventListener('click',()=>$('importZipFile').click());
+  $('importZipFile').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';await importZip(f)});
   addEventListener('beforeunload',()=>{if(state.episode&&state.unsaved)immediateSave()});
  }
  async function init(){
