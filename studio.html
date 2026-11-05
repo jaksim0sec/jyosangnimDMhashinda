@@ -41,7 +41,7 @@
       <div class="field-grid">
         <div><label for="sceneKind">유형</label><select id="sceneKind"><option value="intro">인트로</option><option value="chat">단톡</option><option value="post">SNS 게시물</option><option value="narration">나레이션</option><option value="photo">사진</option><option value="outro">결말</option></select></div>
         <div><label for="duration">장면 길이 (초)</label><input id="duration" type="number" min="0.2" max="60" step="0.1"></div>
-        <div><label for="sceneVariant">스타일 · 커스텀 변형</label><input id="sceneVariant" type="text" list="variantList" placeholder="기본 / kakao / royal-purge" maxlength="64"><datalist id="variantList"><option value="kakao"><option value="webtoon"><option value="social"><option value="dark"><option value="royal-purge"></datalist></div>
+        <div><label for="sceneVariant">스타일 · 커스텀 변형</label><input id="sceneVariant" type="text" list="variantList" placeholder="기본 / kakao / royal-purge" maxlength="64"><datalist id="variantList"><option value="kakao"><option value="webtoon"><option value="social"><option value="dark"><option value="royal-purge"><option value="cinematic"><option value="notice-storm"><option value="notice-inbox"></datalist></div>
         <div><label for="transition">전환</label><select id="transition"><option value="cut">바로 전환</option><option value="fade">페이드</option></select></div>
       </div>
       <div class="field-grid">
@@ -79,6 +79,7 @@
 <script defer src="studio/renderer.js"></script>
 <script defer src="studio/canvas.js"></script>
 <script defer src="studio/variants/sukjong-royal.js"></script>
+<script defer src="studio/variants/story-beats.js"></script>
 <script defer src="studio/webm.js"></script>
 <script defer src="studio/zip.js"></script>
 <script defer src="studio/app.js"></script>
